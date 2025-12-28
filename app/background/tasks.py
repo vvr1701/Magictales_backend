@@ -8,6 +8,7 @@ from typing import Optional
 import structlog
 from uuid import UUID
 import base64
+import random
 
 from app.config import get_settings
 from app.models.database import get_db
@@ -15,7 +16,6 @@ from app.models.enums import PreviewStatus, OrderStatus, JobStatus
 from app.services.storage import StorageService
 from app.services.pdf_generator import PDFGeneratorService
 from app.stories.themes import get_theme
-from app.ai.pipelines.artistic import ArtisticPipeline
 from app.ai.pipelines.realistic import RealisticPipeline
 from app.core.exceptions import ImageGenerationError, StorageError
 
@@ -202,12 +202,9 @@ async def generate_full_preview(
             logger.error("Failed to load settings", error=str(e))
             raise
 
-        # Select pipeline
+        # Initialize pipeline (photorealistic only)
         try:
-            if style == "artistic":
-                pipeline = ArtisticPipeline()
-            else:
-                pipeline = RealisticPipeline()
+            pipeline = RealisticPipeline()
             logger.info("Pipeline initialized successfully", style=style)
         except Exception as e:
             logger.error("Failed to initialize pipeline", style=style, error=str(e))
@@ -245,19 +242,23 @@ async def generate_full_preview(
                 output_path = f"final/{preview_id}/page_{page_num:02d}.jpg"
 
                 try:
+                    # Generate unique seed for each page for more variation
+                    # Use base seed + page number for reproducibility if needed
+                    page_seed = random.randint(1, 2147483647) if settings.default_seed is None else settings.default_seed + page_num
+                    
                     logger.info(f"About to call pipeline.generate_page for page {page_num}",
                                prompt_preview=prompt_data["prompt"][:50],
                                negative_prompt=prompt_data["negative_prompt"],
                                photo_url=photo_url[:50] if photo_url else None,
                                output_path=output_path,
-                               seed=settings.default_seed)
+                               seed=page_seed)
 
                     result = await pipeline.generate_page(
                         prompt=prompt_data["prompt"],
                         negative_prompt=prompt_data["negative_prompt"],
                         child_photo_url=photo_url,
                         output_path=output_path,
-                        seed=settings.default_seed
+                        seed=page_seed
                     )
                     logger.info(f"Page {page_num} generation completed", success=result.success,
                                has_image_url=result.image_url is not None)

@@ -85,7 +85,7 @@ MODELS: Dict[str, ModelConfig] = {
         default_params={
             "num_inference_steps": 30,
             "guidance_scale": 7.5,
-            "id_weight": 0.85,
+            "id_weight": 0.6,  # Lower = better prompt adherence for scenes/poses; Higher = stronger face similarity
         }
     ),
 

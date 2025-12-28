@@ -1,0 +1,989 @@
+/*!
+ * Premium Comic Book Layout Framework
+ * For Zelavo Kids AI-Powered Storybooks
+ * Enhanced layouts, typography, and visual elements
+ */
+
+/* Google Fonts Import for Comic Book Typography */
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@300;400;700&family=Creepster&family=Faster+One&display=swap');
+
+/* ========================================
+   LAYOUT SYSTEM VARIABLES
+======================================== */
+:root {
+    /* Color Palette */
+    --primary-magic: #6A5ACD;
+    --secondary-gold: #FFD700;
+    --accent-red: #FF6B6B;
+    --accent-blue: #4ECDC4;
+    --dark-purple: #2E1065;
+    --light-purple: #E6E6FA;
+
+    /* Typography Scale */
+    --font-comic: 'Comic Neue', 'Comic Sans MS', cursive;
+    --font-title: 'Bangers', cursive;
+    --font-special: 'Faster One', cursive;
+    --font-scary: 'Creepster', cursive;
+
+    /* Spacing System */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-xxl: 48px;
+
+    /* Panel System */
+    --panel-border: 3px solid #333;
+    --panel-radius: 12px;
+    --panel-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+    /* Page Dimensions */
+    --page-width: 8in;
+    --page-height: 8in;
+    --page-margin: 0.5in;
+    --bleed: 0.125in;
+}
+
+/* ========================================
+   BASE PAGE SETUP
+======================================== */
+@page {
+    size: var(--page-width) var(--page-height);
+    margin: var(--page-margin);
+
+    @bottom-center {
+        content: "";
+        font-family: var(--font-comic);
+        font-size: 10pt;
+        color: #666;
+    }
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-comic);
+    background: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* ========================================
+   LAYOUT TEMPLATES
+======================================== */
+
+/* Full Page Layout - Hero Moments */
+.layout-hero {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    page-break-before: always;
+    position: relative;
+}
+
+.layout-hero .hero-image {
+    flex: 1;
+    background-size: cover;
+    background-position: center;
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+    margin-bottom: var(--space-lg);
+    border: var(--panel-border);
+    overflow: hidden;
+}
+
+.layout-hero .hero-text {
+    background: linear-gradient(135deg, rgba(106, 90, 205, 0.9), rgba(255, 215, 0, 0.1));
+    padding: var(--space-lg);
+    border-radius: var(--panel-radius);
+    border: var(--panel-border);
+    font-size: 16pt;
+    line-height: 1.6;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    position: relative;
+}
+
+/* Two Panel Layout - Action Scenes */
+.layout-action {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: var(--space-md);
+    page-break-before: always;
+}
+
+.layout-action .main-panel {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    border: var(--panel-border);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+}
+
+.layout-action .text-panel {
+    grid-column: 2;
+    grid-row: 1;
+    background: rgba(255, 255, 255, 0.95);
+    border: var(--panel-border);
+    border-radius: var(--panel-radius);
+    padding: var(--space-lg);
+    display: flex;
+    align-items: center;
+    font-size: 14pt;
+    line-height: 1.5;
+}
+
+.layout-action .sound-panel {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, #FFD700, #FF6B6B);
+    border: var(--panel-border);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+}
+
+/* Three Panel Layout - Sequential Action */
+.layout-sequence {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 2fr 1fr;
+    gap: var(--space-md);
+    page-break-before: always;
+}
+
+.layout-sequence .panel-1 {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    border: var(--panel-border);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+}
+
+.layout-sequence .panel-2,
+.layout-sequence .panel-3,
+.layout-sequence .panel-4 {
+    border: var(--panel-border);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+    padding: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.9);
+    font-size: 12pt;
+    text-align: center;
+}
+
+/* Intimate Layout - Character Moments */
+.layout-intimate {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: var(--space-lg);
+    page-break-before: always;
+    padding: var(--space-lg);
+}
+
+.layout-intimate .character-panel {
+    border-radius: 50%;
+    border: 5px solid var(--primary-magic);
+    box-shadow: var(--panel-shadow);
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.layout-intimate .dialogue-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-md);
+}
+
+/* ========================================
+   SPEECH BUBBLES & TEXT ELEMENTS
+======================================== */
+.speech-bubble {
+    background: white;
+    border: 3px solid #333;
+    border-radius: 20px;
+    padding: var(--space-md) var(--space-lg);
+    position: relative;
+    font-family: var(--font-comic);
+    font-size: 14pt;
+    line-height: 1.4;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+    z-index: 10;
+}
+
+.speech-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -15px;
+    left: 30px;
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-top: 15px solid white;
+    z-index: 11;
+}
+
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -18px;
+    left: 27px;
+    width: 0;
+    height: 0;
+    border-left: 18px solid transparent;
+    border-right: 18px solid transparent;
+    border-top: 18px solid #333;
+    z-index: 9;
+}
+
+.thought-bubble {
+    background: linear-gradient(145deg, #f0f8ff, #e6f3ff);
+    border: 2px dashed #6495ED;
+    border-radius: 25px;
+    padding: var(--space-md) var(--space-lg);
+    font-style: italic;
+    position: relative;
+    font-family: var(--font-comic);
+    font-size: 13pt;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.narrator-box {
+    background: linear-gradient(135deg, #f5f5f5, #e8e8e8);
+    border: 2px solid #999;
+    border-radius: 8px;
+    padding: var(--space-md);
+    font-family: var(--font-comic);
+    font-size: 13pt;
+    line-height: 1.5;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+/* ========================================
+   SOUND EFFECTS & DYNAMIC TEXT
+======================================== */
+.sound-effect {
+    font-family: var(--font-title);
+    font-weight: bold;
+    font-size: clamp(24pt, 5vw, 48pt);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-shadow:
+        3px 3px 0px #000,
+        6px 6px 0px rgba(0, 0, 0, 0.3);
+    transform: rotate(-5deg);
+    display: inline-block;
+    z-index: 20;
+    position: relative;
+}
+
+.sound-effect.whoosh {
+    background: linear-gradient(45deg, #4ECDC4, #45b7d1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.sound-effect.clang {
+    color: #FFD700;
+    animation: vibrate 0.3s infinite;
+}
+
+.sound-effect.boom {
+    background: linear-gradient(45deg, #FF6B6B, #FF8E8E);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: clamp(32pt, 7vw, 64pt);
+}
+
+@keyframes vibrate {
+    0%, 100% { transform: rotate(-5deg) translate(0); }
+    25% { transform: rotate(-5deg) translate(-2px, -2px); }
+    50% { transform: rotate(-5deg) translate(2px, -2px); }
+    75% { transform: rotate(-5deg) translate(-2px, 2px); }
+}
+
+/* ========================================
+   TYPOGRAPHY SYSTEM
+======================================== */
+.title-text {
+    font-family: var(--font-title);
+    font-size: clamp(28pt, 6vw, 48pt);
+    text-shadow: 4px 4px 0px #000;
+    background: linear-gradient(45deg, var(--primary-magic), var(--secondary-gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    margin: var(--space-lg) 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.dialogue-text {
+    font-family: var(--font-comic);
+    font-size: 14pt;
+    line-height: 1.4;
+    color: #333;
+}
+
+.narrative-text {
+    font-family: var(--font-comic);
+    font-size: 13pt;
+    line-height: 1.6;
+    color: #444;
+    text-align: justify;
+}
+
+.caption-text {
+    font-family: var(--font-comic);
+    font-size: 11pt;
+    font-style: italic;
+    color: #666;
+    text-align: center;
+    padding: var(--space-sm);
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+}
+
+/* ========================================
+   PREMIUM COVER PAGE DESIGNS (Enhanced)
+======================================== */
+
+/* Base premium cover with theme variations */
+.cover-premium {
+    height: 100vh;
+    background: linear-gradient(135deg, var(--dark-purple) 0%, var(--primary-magic) 50%, var(--secondary-gold) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.cover-premium::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background:
+        radial-gradient(circle at 20% 80%, rgba(255, 215, 0, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(78, 205, 196, 0.2) 0%, transparent 50%);
+    animation: magical-glow 20s ease-in-out infinite;
+}
+
+@keyframes magical-glow {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(180deg); }
+}
+
+.cover-title {
+    font-family: var(--font-title);
+    font-size: clamp(36pt, 8vw, 72pt);
+    text-shadow:
+        4px 4px 0px rgba(0, 0, 0, 0.8),
+        8px 8px 20px rgba(0, 0, 0, 0.3);
+    margin-bottom: var(--space-lg);
+    z-index: 10;
+    position: relative;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+}
+
+.cover-subtitle {
+    font-family: var(--font-comic);
+    font-size: 18pt;
+    margin-bottom: var(--space-xl);
+    z-index: 10;
+    position: relative;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.cover-author {
+    font-family: var(--font-comic);
+    font-size: 16pt;
+    font-weight: 300;
+    z-index: 10;
+    position: relative;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ========================================
+   BACK COVER DESIGN
+======================================== */
+.back-cover-premium {
+    height: 100vh;
+    background: linear-gradient(225deg, var(--primary-magic) 0%, var(--dark-purple) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: white;
+    padding: var(--space-xl);
+    position: relative;
+}
+
+.credits-section {
+    font-family: var(--font-comic);
+    font-size: 14pt;
+    line-height: 2;
+    z-index: 10;
+}
+
+.credits-section .logo-text {
+    font-family: var(--font-title);
+    font-size: 24pt;
+    color: var(--secondary-gold);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    margin-bottom: var(--space-lg);
+}
+
+/* ========================================
+   UTILITY CLASSES
+======================================== */
+.panel-border {
+    border: var(--panel-border);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+}
+
+.magic-gradient {
+    background: linear-gradient(135deg, var(--primary-magic), var(--secondary-gold));
+}
+
+.text-shadow-strong {
+    text-shadow: 3px 3px 0px #000, 6px 6px 10px rgba(0, 0, 0, 0.3);
+}
+
+.text-shadow-soft {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.full-bleed {
+    margin: calc(-1 * var(--page-margin));
+    padding: var(--page-margin);
+}
+
+/* ========================================
+   PAGE NUMBERING
+======================================== */
+.page-number {
+    position: absolute;
+    bottom: var(--space-md);
+    right: var(--space-md);
+    font-family: var(--font-comic);
+    font-size: 12pt;
+    color: #666;
+    background: rgba(255, 255, 255, 0.8);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    z-index: 30;
+}
+
+/* ========================================
+   DYNAMIC TEXT EFFECTS (Phase 3)
+======================================== */
+
+/* Character name highlighting */
+.character-name {
+    color: var(--accent-blue);
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    font-family: var(--font-title);
+}
+
+/* Magic sparkle text effect */
+.text-sparkle {
+    background: linear-gradient(45deg, #ffd700, #ff69b4, #00bfff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    font-weight: bold;
+}
+
+/* Glowing text for wonder words */
+.text-glow {
+    color: var(--secondary-gold);
+    text-shadow:
+        0 0 5px rgba(255, 215, 0, 0.8),
+        0 0 10px rgba(255, 215, 0, 0.6),
+        0 0 15px rgba(255, 215, 0, 0.4);
+    font-weight: bold;
+}
+
+/* Dramatic text for intense words */
+.text-dramatic {
+    color: var(--accent-red);
+    text-shadow:
+        2px 2px 0px #000,
+        0 0 8px rgba(255, 107, 107, 0.7);
+    font-weight: bold;
+    font-family: var(--font-title);
+}
+
+/* Speed text effect for motion words */
+.text-speed {
+    color: var(--accent-blue);
+    font-style: italic;
+    position: relative;
+    display: inline-block;
+}
+
+.text-speed::after {
+    content: '💨';
+    position: absolute;
+    right: -20px;
+    animation: speed-trail 1.5s infinite;
+}
+
+@keyframes speed-trail {
+    0% { opacity: 0; transform: translateX(0); }
+    50% { opacity: 1; transform: translateX(5px); }
+    100% { opacity: 0; transform: translateX(10px); }
+}
+
+/* Floating text for flight scenes */
+.text-float {
+    color: var(--primary-magic);
+    animation: gentle-float 3s ease-in-out infinite;
+    display: inline-block;
+}
+
+@keyframes gentle-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+/* Gentle text for peaceful moments */
+.text-gentle {
+    color: #8a8a8a;
+    font-style: italic;
+    opacity: 0.8;
+    letter-spacing: 2px;
+}
+
+/* Exclamation burst effect */
+.exclamation-burst {
+    color: var(--accent-red);
+    font-size: 1.2em;
+    text-shadow:
+        0 0 3px rgba(255, 107, 107, 0.8),
+        0 0 6px rgba(255, 107, 107, 0.6);
+    animation: exclamation-pulse 0.6s ease-out;
+    display: inline-block;
+}
+
+@keyframes exclamation-pulse {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+/* Enhanced sound effect variations */
+.sound-effect.magic {
+    background: linear-gradient(45deg, #8a2be2, #dda0dd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+    animation: magical-shimmer 2s infinite;
+}
+
+@keyframes magical-shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; text-shadow: 0 0 15px rgba(138, 43, 226, 0.8); }
+}
+
+/* Background effects for different moods */
+.magical-sparkle {
+    position: relative;
+}
+
+.magical-sparkle::before {
+    content: '✨ ⭐ 🌟 ✨';
+    position: absolute;
+    top: -20px;
+    right: -30px;
+    font-size: 12pt;
+    animation: sparkle-twinkle 2s infinite;
+}
+
+@keyframes sparkle-twinkle {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
+.flight-trail {
+    position: relative;
+}
+
+.flight-trail::after {
+    content: '💨 ☁️';
+    position: absolute;
+    bottom: -15px;
+    right: -25px;
+    animation: trail-drift 3s infinite;
+}
+
+@keyframes trail-drift {
+    0% { opacity: 0.8; transform: translateX(0); }
+    100% { opacity: 0.3; transform: translateX(20px); }
+}
+
+/* Visual element containers */
+.decorative-elements {
+    text-align: center;
+    font-size: 16pt;
+    margin: var(--space-sm) 0;
+    opacity: 0.8;
+}
+
+.mood-indicator {
+    position: absolute;
+    top: var(--space-sm);
+    right: var(--space-sm);
+    font-size: 14pt;
+    opacity: 0.7;
+}
+
+/* ===== PREMIUM COVER DESIGNS ===== */
+
+/* Magic Castle Theme */
+.magical-title-glow {
+    text-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700, 0 0 30px #ffd700;
+    color: #fff;
+    background: linear-gradient(45deg, #4a1a5c, #8b3a8b, #4a1a5c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: magical-pulse 2s infinite;
+}
+
+@keyframes magical-pulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.3); }
+}
+
+.floating-sparkles {
+    position: relative;
+    overflow: hidden;
+}
+
+.floating-sparkles::before {
+    content: '✨ ⭐ 🌟 ✨ 💫 ⭐ ✨ 🌟';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 16pt;
+    pointer-events: none;
+    animation: sparkle-float 4s infinite linear;
+    opacity: 0.7;
+    z-index: -1;
+}
+
+@keyframes sparkle-float {
+    0% { transform: translateY(100%) rotate(0deg); }
+    100% { transform: translateY(-100%) rotate(360deg); }
+}
+
+/* Space Adventure Theme */
+.cosmic-title-glow {
+    text-shadow: 0 0 15px #00bfff, 0 0 25px #00bfff, 0 0 35px #00bfff;
+    color: #fff;
+    background: linear-gradient(45deg, #000428, #004e92, #000428);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: cosmic-pulse 3s infinite;
+}
+
+@keyframes cosmic-pulse {
+    0%, 100% {
+        text-shadow: 0 0 15px #00bfff, 0 0 25px #00bfff, 0 0 35px #00bfff;
+    }
+    50% {
+        text-shadow: 0 0 20px #ff6b6b, 0 0 30px #ff6b6b, 0 0 40px #ff6b6b;
+    }
+}
+
+.floating-stars {
+    position: relative;
+    overflow: hidden;
+}
+
+.floating-stars::before {
+    content: '⭐ 🌟 ✨ 🌠 ⭐ 🌟 ✨ 🌠';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 14pt;
+    pointer-events: none;
+    animation: star-twinkle 3s infinite;
+    opacity: 0.8;
+    z-index: -1;
+}
+
+@keyframes star-twinkle {
+    0%, 100% { opacity: 0.8; transform: scale(1) rotate(0deg); }
+    25% { opacity: 0.4; transform: scale(0.8) rotate(90deg); }
+    50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+    75% { opacity: 0.6; transform: scale(0.9) rotate(270deg); }
+}
+
+/* Underwater Kingdom Theme */
+.underwater-title-glow {
+    text-shadow: 0 0 12px #00ffff, 0 0 22px #00ffff, 0 0 32px #00ffff;
+    color: #fff;
+    background: linear-gradient(45deg, #006994, #0099cc, #006994);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: underwater-wave 2.5s infinite;
+}
+
+@keyframes underwater-wave {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
+}
+
+.underwater-bubbles {
+    position: relative;
+    overflow: hidden;
+}
+
+.underwater-bubbles::before {
+    content: '🫧 💧 🔵 🫧 💧 🔵 🫧 💧';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 12pt;
+    pointer-events: none;
+    animation: bubble-rise 4s infinite linear;
+    opacity: 0.6;
+    z-index: -1;
+}
+
+@keyframes bubble-rise {
+    0% { transform: translateY(100%) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.6; }
+    100% { transform: translateY(-100%) rotate(180deg); opacity: 0; }
+}
+
+/* Forest Friends Theme */
+.forest-title-glow {
+    text-shadow: 0 0 10px #228b22, 0 0 20px #228b22, 0 0 30px #228b22;
+    color: #fff;
+    background: linear-gradient(45deg, #2d5016, #4a7c59, #2d5016);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: forest-rustle 2s infinite;
+}
+
+@keyframes forest-rustle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(0.5deg); }
+    75% { transform: rotate(-0.5deg); }
+}
+
+.forest-leaves {
+    position: relative;
+    overflow: hidden;
+}
+
+.forest-leaves::before {
+    content: '🍃 🌿 🍂 🍃 🌿 🍂 🍃 🌿';
+    position: absolute;
+    top: -20px;
+    left: 0;
+    width: 120%;
+    height: 120%;
+    font-size: 14pt;
+    pointer-events: none;
+    animation: leaves-drift 5s infinite linear;
+    opacity: 0.5;
+    z-index: -1;
+}
+
+@keyframes leaves-drift {
+    0% { transform: translateX(-10%) rotate(0deg); }
+    100% { transform: translateX(10%) rotate(360deg); }
+}
+
+/* Premium Cover Layout */
+.premium-cover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-align: center;
+    padding: var(--space-xl);
+    border-radius: var(--border-radius);
+    position: relative;
+    overflow: hidden;
+    min-height: 400pt;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.premium-cover .title {
+    font-family: 'Fredoka One', serif;
+    font-size: 32pt;
+    font-weight: bold;
+    margin-bottom: var(--space-md);
+    line-height: 1.2;
+    z-index: 2;
+    position: relative;
+}
+
+.premium-cover .subtitle {
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 18pt;
+    margin-bottom: var(--space-lg);
+    opacity: 0.9;
+    z-index: 2;
+    position: relative;
+}
+
+.premium-cover .author-line {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 14pt;
+    margin-top: var(--space-lg);
+    opacity: 0.8;
+    z-index: 2;
+    position: relative;
+}
+
+/* Premium Back Cover */
+.premium-back-cover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    color: white;
+    padding: var(--space-xl);
+    border-radius: var(--border-radius);
+    position: relative;
+    overflow: hidden;
+    min-height: 400pt;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.premium-back-cover .summary {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 14pt;
+    line-height: 1.6;
+    margin-bottom: var(--space-lg);
+    text-align: justify;
+}
+
+.premium-back-cover .tagline {
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 16pt;
+    text-align: center;
+    font-style: italic;
+    opacity: 0.9;
+    margin-top: var(--space-lg);
+}
+
+/* Theme-specific cover backgrounds */
+.cover-magic-castle {
+    background: linear-gradient(135deg, #4a1a5c 0%, #8b3a8b 50%, #4a1a5c 100%);
+}
+
+.cover-space-adventure {
+    background: linear-gradient(135deg, #000428 0%, #004e92 50%, #000428 100%);
+}
+
+.cover-underwater-kingdom {
+    background: linear-gradient(135deg, #006994 0%, #0099cc 50%, #006994 100%);
+}
+
+.cover-forest-friends {
+    background: linear-gradient(135deg, #2d5016 0%, #4a7c59 50%, #2d5016 100%);
+}
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+======================================== */
+@media screen {
+    body {
+        background: #f0f0f0;
+        padding: 20px;
+    }
+
+    .layout-hero,
+    .layout-action,
+    .layout-sequence,
+    .layout-intimate,
+    .cover-premium,
+    .back-cover-premium {
+        max-width: 600px;
+        margin: 0 auto 40px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+}
+
+/* ========================================
+   PRINT OPTIMIZATIONS
+======================================== */
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .layout-hero,
+    .layout-action,
+    .layout-sequence,
+    .layout-intimate,
+    .cover-premium,
+    .back-cover-premium {
+        page-break-after: always;
+    }
+
+    .sound-effect {
+        /* Ensure sound effects print properly */
+        color-adjust: exact;
+    }
+}

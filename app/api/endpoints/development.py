@@ -4,7 +4,7 @@ WARNING: These endpoints should only be used in development/testing environments
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import structlog
@@ -99,7 +99,7 @@ async def dev_generate_pdf(
             logger.warning("Preview has expired", preview_id=request.preview_id)
             raise HTTPException(status_code=400, detail="Preview has expired")
 
-        # 2. Check if order already exists for this preview (prevent duplicates)
+        # 2. Check if order already exists for this preview (allow retry for failed orders)
         existing_order_response = db.table("orders").select("*").eq("preview_id", request.preview_id).execute()
 
         if existing_order_response.data:
@@ -110,6 +110,34 @@ async def dev_generate_pdf(
                 order_id=existing_order["order_id"],
                 status=existing_order["status"]
             )
+            
+            # If order failed, allow retry by resetting status and re-triggering PDF generation
+            if existing_order["status"] == OrderStatus.FAILED.value:
+                logger.info("Retrying failed order", order_id=existing_order["order_id"])
+                
+                # Reset order status to PAID for retry
+                db.table("orders").update({
+                    "status": OrderStatus.PAID.value,
+                    "error_message": None,
+                    "last_error": None,
+                    "retry_count": existing_order.get("retry_count", 0) + 1
+                }).eq("order_id", existing_order["order_id"]).execute()
+                
+                # Trigger PDF generation again
+                background_tasks.add_task(
+                    generate_pdf,
+                    order_id=existing_order["order_id"],
+                    preview_id=request.preview_id
+                )
+                
+                return DevPdfGenerationResponse(
+                    success=True,
+                    order_id=existing_order["order_id"],
+                    preview_id=request.preview_id,
+                    message=f"Retrying PDF generation for failed order (attempt #{existing_order.get('retry_count', 0) + 1})"
+                )
+            
+            # For non-failed orders, return existing order info
             return DevPdfGenerationResponse(
                 success=True,
                 order_id=existing_order["order_id"],
@@ -128,7 +156,8 @@ async def dev_generate_pdf(
             "total_amount": 0.00,  # Free for development
             "currency": "USD",
             "status": OrderStatus.PAID.value,  # Skip payment verification
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),  # 30 days for downloads
             "payment_method": "DEV_BYPASS",
             "is_development_order": True  # Flag to identify dev orders
         }

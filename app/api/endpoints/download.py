@@ -2,7 +2,7 @@
 Download endpoint for completed orders.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException
 import structlog
 
@@ -58,9 +58,14 @@ async def get_download(order_id: str):
                 )
 
         # Check if order has expired
-        expires_at = datetime.fromisoformat(order["expires_at"].replace('Z', '+00:00'))
-        if expires_at < datetime.utcnow().replace(tzinfo=expires_at.tzinfo):
-            raise HTTPException(status_code=410, detail="Download links have expired")
+        if order.get("expires_at"):
+            expires_at = datetime.fromisoformat(order["expires_at"].replace('Z', '+00:00'))
+            if expires_at < datetime.utcnow().replace(tzinfo=expires_at.tzinfo):
+                raise HTTPException(status_code=410, detail="Download links have expired")
+        else:
+            # Default expiry to 30 days from creation if not set
+            created_at = datetime.fromisoformat(order.get("created_at", datetime.utcnow().isoformat()).replace('Z', '+00:00'))
+            expires_at = created_at + timedelta(days=30)
 
         # Get preview data for image URLs
         preview_response = db.table("previews").select("*").eq("preview_id", order["preview_id"]).execute()

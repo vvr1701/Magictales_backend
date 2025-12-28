@@ -15,23 +15,7 @@ MAGIC_CASTLE_THEME = StoryTemplate(
         PageTemplate(
             page_number=1,
             scene_description="Arrival at the magic school gates",
-            artistic_prompt="""
-            A breathtaking wide establishing shot of a magical scene. {protagonist} stands in the
-            lower left of the frame, looking up in wonder at massive gothic castle gates made of
-            dark iron with glowing purple magical runes. The child wears {costume}. Their expression
-            shows excitement and wonder with wide sparkling eyes and mouth slightly open in awe.
-
-            On a tall stone pedestal to the right of the gate perches Professor Hoot - a giant
-            4-foot-tall majestic brown owl with large round brass reading glasses and a small
-            black graduation cap with gold tassel. The owl looks down wisely at the child.
-
-            The massive iron gates are 50 feet tall with twisted spires disappearing into morning
-            mist. Golden sunlight streams through from behind creating god rays. Magical sparkles
-            float in the air like fireflies. Ancient oak trees frame the scene. Cobblestone path
-            leads to the gates.
-
-            {artistic_style_block}
-            """,
+            scene_type="arrival",  # Cinematic: establishing shot with golden lighting
             realistic_prompt="""
             Cinematic wide shot photograph. {protagonist} stands before massive ornate iron gates
             of an ancient magical castle, wearing {costume}. The child looks up with genuine wonder
@@ -56,24 +40,8 @@ MAGIC_CASTLE_THEME = StoryTemplate(
         PageTemplate(
             page_number=2,
             scene_description="The magical test to open the gates",
-            artistic_prompt="""
-            Dynamic action shot split scene. {protagonist} is in a power stance - feet planted wide,
-            both hands gripping a simple wooden wand (oak, 10 inches, slightly crooked). The wand tip
-            EXPLODES with brilliant golden-purple magical energy, swirling sparks and lightning
-            crackling toward the massive iron gate lock.
+            scene_type="test",  # Cinematic: dramatic lighting with magical effects
 
-            The child's face shows intense concentration - eyes focused, determined expression,
-            hair and cloak billowing from magical wind. They wear {costume}.
-
-            Professor Hoot the giant owl with brass glasses watches from his pedestal, one eyebrow
-            raised, evaluating the young wizard's potential.
-
-            The iron lock on the gate is beginning to glow, ancient runes activating in sequence.
-            Magical energy swirls throughout the scene. Dramatic lighting from the spell creates
-            strong shadows.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Dramatic action photograph. {protagonist} stands in a determined pose, both hands
             gripping a rustic wooden wand pointed at massive iron gates. Brilliant golden-purple
@@ -101,25 +69,8 @@ MAGIC_CASTLE_THEME = StoryTemplate(
         PageTemplate(
             page_number=3,
             scene_description="Walking through the opened gates",
-            artistic_prompt="""
-            Cinematic reveal shot. The massive iron gates are swinging wide open toward the viewer,
-            creating a natural frame. Magical energy crackles along the gate edges in purple and
-            gold lightning. Ancient runes on the gates pulse with fading light.
+            scene_type="revelation",  # Cinematic: epic establishing shot with sense of wonder
 
-            Walking through the center of the frame, viewed from behind in 3/4 back view, is
-            {protagonist}. Their face is partially visible in profile showing an awed, joyful
-            expression. They wear {costume}, cloak flowing majestically. Small footsteps on
-            ancient cobblestones.
-
-            REVEALED BEYOND THE GATES: A breathtaking magical courtyard bathed in warm sunlight.
-            A grand fountain shoots water that transforms into flying fish mid-air. Floating
-            lanterns drift lazily. Students in various colored robes walk between gothic buildings.
-            A clock tower has hands that move backwards. Trees have leaves in silver, gold, and purple.
-
-            Professor Hoot flies overhead, wings spread magnificently, announcing the new arrival.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Cinematic reveal photograph from behind. {protagonist} walks through massive opening
             iron gates, seen from 3/4 back view. Profile shows wonder and joy on their face.
@@ -146,23 +97,8 @@ MAGIC_CASTLE_THEME = StoryTemplate(
         PageTemplate(
             page_number=4,
             scene_description="Beast taming class chaos",
-            artistic_prompt="""
-            Action scene in a stone courtyard classroom. A large reinforced wooden crate (4 feet tall)
-            is VIOLENTLY SHAKING, jumping off the ground. Cracks appear in the wood. Purple and
-            orange smoke billows from the gaps. Small flames lick the edges.
+            scene_type="chaos",  # Cinematic: dynamic action shot with dramatic lighting
 
-            {protagonist} walks TOWARD the shaking crate while other students flee in panic behind
-            them. The child wears {costume}, sleeves rolled up, showing they're ready to work.
-            Their expression shows calm determination mixed with curiosity - slight confident smile,
-            eyes focused on the crate.
-
-            Background: Five other student wizards in various colored robes scramble backward in
-            panic. An elderly wizard teacher with a long white beard looks on with interest.
-
-            The crate is cracking, about to burst open. Motion lines show the violent shaking.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Dramatic photograph in a stone courtyard. A large wooden crate shakes violently,
             smoke and small flames emerging from the gaps. The wood is splintering.
@@ -189,24 +125,8 @@ MAGIC_CASTLE_THEME = StoryTemplate(
         PageTemplate(
             page_number=5,
             scene_description="Meeting Sparky the baby dragon",
-            artistic_prompt="""
-            Heartwarming close-up scene. {protagonist} is kneeling down to eye level with SPARKY -
-            a small adorable baby dragon (size of a large cat). Sparky has red scales, tiny orange
-            wings that are too small for his body, big watery golden eyes, and smoke puffing from
-            his nostrils with each hiccup.
+            scene_type="bonding",  # Cinematic: intimate close-up with natural lighting
 
-            The child wears {costume} and has the most gentle, kind expression - soft eyes, warm
-            smile, one hand slowly reaching out offering a glowing magical cookie (golden, star-shaped).
-
-            Sparky leans forward cautiously, sniffing the cookie. His expression transforms from
-            scared to hopeful - eyes widening, tiny tail starting to wag. A small heart-shaped
-            puff of smoke comes from his nose.
-
-            Background is softly blurred with warm golden light, creating an intimate bonding moment.
-            Broken crate pieces scattered around them.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Intimate close-up photograph. {protagonist} kneels on stone ground, face-to-face with
             a small baby dragon creature. The child wears {costume}, expression showing pure
@@ -233,26 +153,8 @@ MAGIC_CASTLE_THEME = StoryTemplate(
         PageTemplate(
             page_number=6,
             scene_description="First successful broomstick flight",
-            artistic_prompt="""
-            Dynamic vertical action shot showing triumphant flight. {protagonist} ROCKETS upward
-            into the sky on a wooden broomstick with twigs at the tail. The composition is
-            dramatically vertical with strong upward motion lines.
+            scene_type="action",  # Cinematic: dynamic action shot with dramatic upward angle
 
-            The child's expression shows pure JOY - huge smile, eyes bright with exhilaration,
-            hair streaming upward, {costume} flowing behind like a banner. They grip the broom
-            confidently, leaning forward into the speed.
-
-            Below, rapidly shrinking, are other students pointing up in amazement on a grassy
-            training field. Sparky the baby dragon jumps up and down excitedly, shooting tiny
-            celebratory fire puffs.
-
-            The sky opens up brilliantly - blue with fluffy white clouds. A flock of magical
-            birds with sparkle trails flies alongside.
-
-            Speed lines and sparkle effects throughout. Sense of freedom and achievement.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Action photograph capturing the moment of flight. {protagonist} soars upward on a
             rustic wooden broomstick, wearing {costume}. Their face shows pure exhilaration -
@@ -279,26 +181,8 @@ MAGIC_CASTLE_THEME = StoryTemplate(
         PageTemplate(
             page_number=7,
             scene_description="Flying above the clouds",
-            artistic_prompt="""
-            Breathtaking wide shot of endless magical sky. {protagonist} soars on their broomstick
-            through a sea of fluffy white and pink-tinged clouds. They wear {costume}, goggles
-            now over eyes reflecting the clouds.
+            scene_type="flight",  # Cinematic: heroic angle with epic sky lighting
 
-            The child's posture is confident and graceful - one hand on the broom, one arm stretched
-            out touching the clouds as they pass. Expression shows peaceful bliss and wonder.
-
-            THREE MOONS of different sizes hang in the deep blue-purple sky - one large silver,
-            one medium gold, one small rose-pink. Countless stars form shifting constellations.
-            A shooting star streaks across the corner.
-
-            Sparky the baby dragon flies alongside, tiny wings working hard, tongue out in doglike
-            happiness.
-
-            Magical elements: Rainbow trails follow the broomstick, cloud creatures (whales made
-            of cloud) swim in the distance, floating islands visible on the horizon.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Stunning aerial photograph above the clouds. {protagonist} flies through a dreamscape
             of clouds and sky, wearing {costume}. Expression shows pure peace and wonder, a gentle
@@ -325,26 +209,8 @@ Even Sparky had somehow followed, his tiny wings working overtime to keep up."""
         PageTemplate(
             page_number=8,
             scene_description="Library incident with flying books",
-            artistic_prompt="""
-            Chaotic action scene in a magical library. Impossibly tall dark wooden bookshelves
-            stretch upward. DOZENS of books have come to life and FLY through the air like birds,
-            pages flapping as wings!
+            scene_type="mischief",  # Cinematic: dynamic chaos with dramatic lighting
 
-            {protagonist} has ducked under a heavy reading table, laughing despite the chaos -
-            this is FUN chaos. They wear {costume}. Papers swirl like a blizzard around them.
-
-            MIDNIGHT the cat (sleek black cat with glowing yellow eyes and silver collar) leaps
-            through the air in an athletic pounce, catching a flying blue book in her mouth.
-            Her body is stretched elegantly mid-air.
-
-            Books everywhere: a dictionary chases a thesaurus, a cookbook flaps near the ceiling,
-            a map book has unfolded into a paper airplane shape. One angry book seems to be
-            shouting at everything.
-
-            Warm candlelight mixed with chaos. Floating candles wobble in the book-wind.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Dynamic photograph in an ancient library. Books fly chaotically through the air as if
             alive, pages flapping. {protagonist} ducks behind an overturned wooden chair, wearing
@@ -370,23 +236,8 @@ The moment {name}'s finger touched the spine, every book in the library came ALI
         PageTemplate(
             page_number=9,
             scene_description="Bonding with animal friends",
-            artistic_prompt="""
-            Warm, cozy scene in a library window seat. {protagonist} sits comfortably in a large
-            window alcove, late afternoon golden light streaming in. They wear {costume}, slightly
-            disheveled from the earlier chaos but happy.
+            scene_type="friendship",  # Cinematic: intimate portrait with golden lighting
 
-            MIDNIGHT the black cat is curled up contentedly in the child's lap, purring, eyes
-            half-closed in bliss. The child strokes her fur gently, looking down with pure affection.
-
-            SPARKY appears at the window from outside, pressing his little dragon face against
-            the glass adorably, making a fog circle with his breath, wanting to join but knowing
-            he's not allowed in the library (fire hazard).
-
-            The composition is warm, safe, and loving. Golden hour light creates a halo effect.
-            Scattered books visible in the background, now peaceful on their shelves.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Intimate portrait photograph in a library window seat. {protagonist} sits in a cozy
             alcove, wearing {costume}, bathed in warm golden afternoon light streaming through
@@ -413,27 +264,8 @@ The moment {name}'s finger touched the spine, every book in the library came ALI
         PageTemplate(
             page_number=10,
             scene_description="Peaceful ending under the moons",
-            artistic_prompt="""
-            Stunning cinematic finale. The view is from the Astronomy Tower balcony, the highest
-            point of the castle. Stone balcony railing carved with celestial symbols that faintly glow.
+            scene_type="peaceful",  # Cinematic: dramatic silhouette with magical moonlight
 
-            {protagonist} stands at the railing, viewed from 3/4 angle so we see both their profile
-            and the magnificent view. They wear {costume} - formal and regal. Expression is peaceful,
-            content, full of quiet excitement for the future.
-
-            THREE MOONS hang in the deep blue-purple sky - large silver, medium gold, small rose-pink.
-            Countless stars form shifting constellations. The castle grounds twinkle with floating
-            lanterns below.
-
-            MIDNIGHT sits elegantly on the stone railing, yellow eyes reflecting the moons.
-            SPARKY is curled at {name}'s feet, sleepy but content, tail wrapped around their ankle
-            protectively.
-
-            Silver-blue moonlight creates rim lighting on all characters. Warm orange glow from
-            castle windows provides contrast. Magical, triumphant, full of promise.
-
-            {artistic_style_block}
-            """,
             realistic_prompt="""
             Cinematic photograph from a castle tower balcony at night. {protagonist} stands at
             an ornate stone railing, gazing out at an incredible view - castle grounds twinkling

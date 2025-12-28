@@ -31,8 +31,6 @@ class Settings(BaseSettings):
     fal_api_key: str
 
     # AI Model Configuration
-    artistic_base_model: str = "flux_dev"
-    artistic_face_model: str = "fal_face_swap"
     realistic_model: str = "flux_pulid"
 
     # Fallback Models
