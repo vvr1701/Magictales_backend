@@ -85,10 +85,8 @@ async def test_ai_models():
         print(f"\n🎭 Testing Artistic Pipeline...")
         try:
             from app.ai.pipelines.artistic import ArtisticPipeline
-            from app.services.storage import StorageService
 
-            storage = StorageService()
-            artistic_pipeline = ArtisticPipeline(storage)
+            artistic_pipeline = ArtisticPipeline()
 
             print(f"✅ Artistic Pipeline initialized successfully")
 
@@ -99,10 +97,8 @@ async def test_ai_models():
         print(f"\n📷 Testing Realistic Pipeline...")
         try:
             from app.ai.pipelines.realistic import RealisticPipeline
-            from app.services.storage import StorageService
 
-            storage = StorageService()
-            realistic_pipeline = RealisticPipeline(storage)
+            realistic_pipeline = RealisticPipeline()
 
             print(f"✅ Realistic Pipeline initialized successfully")
 

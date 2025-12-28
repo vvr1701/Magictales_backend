@@ -27,8 +27,7 @@ async def update_job_progress(job_id: str, progress: int, current_step: str = No
     try:
         db = get_db()
         update_data = {
-            "progress": progress,
-            "updated_at": datetime.utcnow().isoformat()
+            "progress": progress
         }
         if current_step:
             update_data["current_step"] = current_step
@@ -49,8 +48,7 @@ async def update_job_status(
     try:
         db = get_db()
         update_data = {
-            "status": status.value,
-            "updated_at": datetime.utcnow().isoformat()
+            "status": status.value
         }
 
         if progress is not None:
@@ -79,7 +77,6 @@ async def update_preview_status(preview_id: str, status: PreviewStatus, **kwargs
         db = get_db()
         update_data = {
             "status": status.value,
-            "updated_at": datetime.utcnow().isoformat(),
             **kwargs
         }
         db.table("previews").update(update_data).eq("preview_id", preview_id).execute()
@@ -97,6 +94,9 @@ async def create_watermarked_preview(
     from PIL import Image, ImageDraw, ImageFont
     import httpx
     from io import BytesIO
+
+    if not source_url:
+        raise ValueError("source_url cannot be None or empty")
 
     try:
         # Download original image
@@ -188,14 +188,30 @@ async def generate_full_preview(
         await update_job_progress(job_id, 0, "Starting generation...")
 
         # Get story template
-        template = get_theme(theme)
-        settings = get_settings()
+        try:
+            template = get_theme(theme)
+            logger.info("Template loaded successfully", theme=theme)
+        except Exception as e:
+            logger.error("Failed to load theme", theme=theme, error=str(e))
+            raise
+
+        try:
+            settings = get_settings()
+            logger.info("Settings loaded successfully")
+        except Exception as e:
+            logger.error("Failed to load settings", error=str(e))
+            raise
 
         # Select pipeline
-        if style == "artistic":
-            pipeline = ArtisticPipeline()
-        else:
-            pipeline = RealisticPipeline()
+        try:
+            if style == "artistic":
+                pipeline = ArtisticPipeline()
+            else:
+                pipeline = RealisticPipeline()
+            logger.info("Pipeline initialized successfully", style=style)
+        except Exception as e:
+            logger.error("Failed to initialize pipeline", style=style, error=str(e))
+            raise
 
         hires_images = []
         story_pages = []
@@ -206,49 +222,83 @@ async def generate_full_preview(
         logger.info("Phase 1: Generating 10 high-res pages")
 
         for page_num in range(1, 11):
-            progress = int((page_num / 10) * 80)  # 0% to 80%
-            await update_job_progress(
-                job_id,
-                progress,
-                f"Generating page {page_num} of 10..."
-            )
+            try:
+                logger.info(f"Starting generation for page {page_num}")
+                progress = int((page_num / 10) * 80)  # 0% to 80%
+                await update_job_progress(
+                    job_id,
+                    progress,
+                    f"Generating page {page_num} of 10..."
+                )
 
-            # Build prompt for this page
-            prompt_data = template.get_page_prompt(
-                page_num, style, child_name, child_age, child_gender
-            )
+                # Build prompt for this page
+                try:
+                    prompt_data = template.get_page_prompt(
+                        page_num, style, child_name, child_age, child_gender
+                    )
+                    logger.info(f"Page {page_num} prompt generated successfully")
+                except Exception as e:
+                    logger.error(f"Failed to generate prompt for page {page_num}", error=str(e))
+                    raise
 
-            # Generate high-res image
-            output_path = f"final/{preview_id}/page_{page_num:02d}.jpg"
+                # Generate high-res image
+                output_path = f"final/{preview_id}/page_{page_num:02d}.jpg"
 
-            result = await pipeline.generate_page(
-                prompt=prompt_data["prompt"],
-                negative_prompt=prompt_data["negative_prompt"],
-                child_photo_url=photo_url,
-                output_path=output_path,
-                seed=settings.default_seed
-            )
+                try:
+                    logger.info(f"About to call pipeline.generate_page for page {page_num}",
+                               prompt_preview=prompt_data["prompt"][:50],
+                               negative_prompt=prompt_data["negative_prompt"],
+                               photo_url=photo_url[:50] if photo_url else None,
+                               output_path=output_path,
+                               seed=settings.default_seed)
 
-            if not result.success:
-                error_msg = f"Failed to generate page {page_num}: {result.error_message}"
-                logger.error(error_msg)
+                    result = await pipeline.generate_page(
+                        prompt=prompt_data["prompt"],
+                        negative_prompt=prompt_data["negative_prompt"],
+                        child_photo_url=photo_url,
+                        output_path=output_path,
+                        seed=settings.default_seed
+                    )
+                    logger.info(f"Page {page_num} generation completed", success=result.success,
+                               has_image_url=result.image_url is not None)
+                except Exception as e:
+                    import traceback
+                    error_traceback = traceback.format_exc()
+                    logger.error(f"Failed to generate page {page_num}",
+                               error=str(e),
+                               error_type=type(e).__name__,
+                               traceback=error_traceback)
+                    raise
+
+                if not result.success or not result.image_url:
+                    error_msg = f"Failed to generate page {page_num}: {result.error_message or 'No image URL returned'}"
+                    logger.error(error_msg)
+                    await update_job_status(job_id, JobStatus.FAILED, error=error_msg)
+                    await update_preview_status(preview_id, PreviewStatus.FAILED)
+                    return
+
+                hires_images.append({
+                    "page": page_num,
+                    "url": result.image_url
+                })
+
+                # Get story text
+                try:
+                    story_text = template.get_story_text(page_num, child_name)
+                    story_pages.append({
+                        "page": page_num,
+                        "text": story_text
+                    })
+                    logger.info(f"Generated page {page_num}", url=result.image_url)
+                except Exception as e:
+                    logger.error(f"Failed to get story text for page {page_num}", error=str(e))
+                    raise
+            except Exception as e:
+                error_msg = f"Page {page_num} generation failed with error: {str(e)} ({type(e).__name__})"
+                logger.error(error_msg, page=page_num, error_type=type(e).__name__)
                 await update_job_status(job_id, JobStatus.FAILED, error=error_msg)
                 await update_preview_status(preview_id, PreviewStatus.FAILED)
                 return
-
-            hires_images.append({
-                "page": page_num,
-                "url": result.image_url
-            })
-
-            # Get story text
-            story_text = template.get_story_text(page_num, child_name)
-            story_pages.append({
-                "page": page_num,
-                "text": story_text
-            })
-
-            logger.info(f"Generated page {page_num}", url=result.image_url)
 
         # ============================================
         # PHASE 2: Create 5 watermarked previews
@@ -315,8 +365,7 @@ async def generate_pdf(order_id: str, preview_id: str):
 
         # Update order status
         db.table("orders").update({
-            "status": OrderStatus.GENERATING_PDF.value,
-            "updated_at": datetime.utcnow().isoformat()
+            "status": OrderStatus.GENERATING_PDF.value
         }).eq("order_id", order_id).execute()
 
         # Get preview data
@@ -363,8 +412,7 @@ async def generate_pdf(order_id: str, preview_id: str):
             "status": OrderStatus.COMPLETED.value,
             "pdf_url": pdf_url,
             "pdf_generated_at": datetime.utcnow().isoformat(),
-            "completed_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "completed_at": datetime.utcnow().isoformat()
         }).eq("order_id", order_id).execute()
 
         # Update preview
@@ -392,8 +440,7 @@ async def generate_pdf(order_id: str, preview_id: str):
             db = get_db()
             db.table("orders").update({
                 "status": OrderStatus.FAILED.value,
-                "error_message": error_msg,
-                "updated_at": datetime.utcnow().isoformat()
+                "error_message": error_msg
             }).eq("order_id", order_id).execute()
         except Exception as db_error:
             logger.error("Failed to update order status", error=str(db_error))

@@ -3,7 +3,7 @@ Shopify webhook handlers.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 import structlog
 
@@ -125,9 +125,8 @@ async def handle_order_paid(request: Request, background_tasks: BackgroundTasks)
             "error_message": None,
             "retry_count": 0,
             "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
             "expires_at": (datetime.utcnow().replace(tzinfo=None) +
-                          datetime.timedelta(days=30)).isoformat()
+                          timedelta(days=30)).isoformat()
         }
 
         order_response = db.table("orders").insert(order_data).execute()
@@ -188,8 +187,7 @@ async def handle_order_cancelled(request: Request):
         # Update order status if exists
         db = get_db()
         db.table("orders").update({
-            "status": OrderStatus.REFUNDED.value,
-            "updated_at": datetime.utcnow().isoformat()
+            "status": OrderStatus.REFUNDED.value
         }).eq("order_id", order_id).execute()
 
         return {"success": True, "message": "Order cancellation processed"}

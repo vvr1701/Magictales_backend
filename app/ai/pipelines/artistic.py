@@ -76,6 +76,12 @@ class ArtisticPipeline:
             seed=seed
         )
 
+        logger.info("Base generation result",
+                   success=base_result.success,
+                   has_image_url=base_result.image_url is not None,
+                   image_url_preview=base_result.image_url[:100] if base_result.image_url else None,
+                   error=base_result.error_message)
+
         if not base_result.success:
             logger.error("Base generation failed", error=base_result.error_message)
 
@@ -96,20 +102,50 @@ class ArtisticPipeline:
             else:
                 return base_result
 
+        # Check if base generation returned valid image URL
+        if not base_result.image_url:
+            logger.error("Base generation succeeded but returned no image URL")
+            return GenerationResult(
+                success=False,
+                error_message="Base generation did not return image URL",
+                model_used=base_result.model_used,
+                latency_ms=base_result.latency_ms
+            )
+
         # Step 2: Swap face
-        logger.info("Swapping face onto illustration")
+        logger.info("Swapping face onto illustration",
+                   base_image_url=base_result.image_url[:100] if base_result.image_url else None,
+                   face_image_url=child_photo_url[:100] if child_photo_url else None)
 
         swap_result = await self.face_swapper.swap_face(
             base_image_url=base_result.image_url,
             face_image_url=child_photo_url
         )
 
+        logger.info("Face swap result",
+                   success=swap_result.success,
+                   has_image_url=swap_result.image_url is not None,
+                   image_url_preview=swap_result.image_url[:100] if swap_result.image_url else None,
+                   error=swap_result.error_message)
+
         if not swap_result.success:
             logger.error("Face swap failed", error=swap_result.error_message)
             return swap_result
 
+        # Check if face swap returned valid image URL
+        if not swap_result.image_url:
+            logger.error("Face swap succeeded but returned no image URL")
+            return GenerationResult(
+                success=False,
+                error_message="Face swap did not return image URL",
+                model_used=swap_result.model_used,
+                latency_ms=swap_result.latency_ms
+            )
+
         # Step 3: Upload to final storage
-        logger.info("Uploading to storage", path=output_path)
+        logger.info("Uploading to storage",
+                   path=output_path,
+                   source_url=swap_result.image_url[:100] if swap_result.image_url else None)
 
         final_url = await self.storage.download_and_upload(
             source_url=swap_result.image_url,

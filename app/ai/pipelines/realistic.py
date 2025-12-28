@@ -80,6 +80,19 @@ class RealisticPipeline:
             else:
                 return result
 
+        # Check if we got a valid image URL
+        if not result.image_url:
+            logger.error("AI service returned None for image_url",
+                        model=result.model_used,
+                        success=result.success,
+                        error=result.error_message)
+            return GenerationResult(
+                success=False,
+                error_message="AI service did not return image URL",
+                model_used=result.model_used,
+                latency_ms=result.latency_ms
+            )
+
         # Upload to storage
         final_url = await self.storage.download_and_upload(
             source_url=result.image_url,

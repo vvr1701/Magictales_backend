@@ -42,7 +42,6 @@ class JobType(str, Enum):
 
 class BookStyle(str, Enum):
     """Storybook visual style."""
-    ARTISTIC = "artistic"
     PHOTOREALISTIC = "photorealistic"
 
 

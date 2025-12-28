@@ -26,7 +26,7 @@ class PreviewCreateRequest(BaseModel):
     child_age: int = Field(..., ge=2, le=12)
     child_gender: str = Field(..., pattern="^(male|female)$")
     theme: Theme
-    style: BookStyle = BookStyle.ARTISTIC
+    style: BookStyle = BookStyle.PHOTOREALISTIC
     session_id: Optional[str] = None
     customer_email: Optional[str] = None
 

@@ -164,18 +164,18 @@ class StorageService:
             Image bytes
         """
         try:
-            logger.info("Downloading image", url=url[:100])
+            logger.info("Downloading image", url=url[:100] if url else None)
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(url)
                 response.raise_for_status()
 
                 image_bytes = response.content
-                logger.info("Image downloaded", url=url[:100], size_bytes=len(image_bytes))
+                logger.info("Image downloaded", url=url[:100] if url else None, size_bytes=len(image_bytes))
                 return image_bytes
 
         except httpx.HTTPError as e:
-            logger.error("Failed to download image", url=url[:100], error=str(e))
+            logger.error("Failed to download image", url=url[:100] if url else None, error=str(e))
             raise StorageError(f"Failed to download image: {str(e)}")
 
     async def download_and_upload(
@@ -197,6 +197,9 @@ class StorageService:
         Returns:
             Public URL of uploaded image
         """
+        if not source_url:
+            raise StorageError("Cannot download image: source_url is None or empty")
+
         image_bytes = await self.download_image(source_url)
         return await self.upload_image(image_bytes, dest_path, content_type)
 

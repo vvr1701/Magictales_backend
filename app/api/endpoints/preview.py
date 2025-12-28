@@ -67,7 +67,6 @@ async def create_preview(
             "preview_images": [],
             "story_pages": [],
             "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
             "expires_at": (datetime.utcnow() + timedelta(days=7)).isoformat()
         }
 
