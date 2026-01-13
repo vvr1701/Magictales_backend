@@ -50,8 +50,9 @@ CREATE TYPE job_type AS ENUM (
 
 -- Visual style for generated images
 CREATE TYPE book_style AS ENUM (
-    'artistic',        -- Cartoon-style illustrations
-    'photorealistic'   -- Realistic AI-generated images
+    'artistic',        -- Cartoon-style illustrations (legacy)
+    'photorealistic',  -- Realistic AI-generated images
+    'cartoon_3d'       -- Disney/Pixar 3D animation style
 );
 
 -- ============================================================================

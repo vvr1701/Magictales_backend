@@ -43,10 +43,17 @@ class JobType(str, Enum):
 class BookStyle(str, Enum):
     """Storybook visual style."""
     PHOTOREALISTIC = "photorealistic"
+    CARTOON_3D = "cartoon_3d"  # Disney/Pixar 3D animation style
 
 
 class Theme(str, Enum):
     """Available story themes."""
+    # Primary StoryGift themes (superior quality, 10 pages each)
+    STORYGIFT_MAGIC_CASTLE = "storygift_magic_castle"
+    STORYGIFT_ENCHANTED_FOREST = "storygift_enchanted_forest"
+    STORYGIFT_SPY_MISSION = "storygift_spy_mission"
+
+    # Legacy themes (for backward compatibility)
     MAGIC_CASTLE = "magic_castle"
     SPACE_ADVENTURE = "space_adventure"
     UNDERWATER = "underwater"

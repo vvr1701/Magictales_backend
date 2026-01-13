@@ -38,6 +38,25 @@ MODELS: Dict[str, ModelConfig] = {
 
     # ========== BASE GENERATION MODELS ==========
 
+    "flux_general": ModelConfig(
+        model_id="flux_general",
+        endpoint="fal-ai/flux-general",
+        model_type=ModelType.BASE_GENERATION,
+        cost_per_image=0.045,
+        avg_latency_seconds=8,
+        supports_negative_prompt=True,
+        supports_seed=True,
+        timeout_seconds=180,
+        default_params={
+            "numInferenceSteps": 50,
+            "guidanceScale": 7.5,
+            "imageSize": {"width": 1024, "height": 1365},  # 4:3 storybook ratio
+            "enableSafetyChecker": True,
+            "syncMode": True,
+            "numImages": 1
+        }
+    ),
+
     "flux_schnell": ModelConfig(
         model_id="flux_schnell",
         endpoint="fal-ai/flux/schnell",
@@ -45,8 +64,8 @@ MODELS: Dict[str, ModelConfig] = {
         cost_per_image=0.003,
         avg_latency_seconds=2,
         default_params={
-            "num_inference_steps": 4,  # Schnell is optimized for fewer steps
-            "guidance_scale": 3.5,
+            "numInferenceSteps": 4,  # Schnell is optimized for fewer steps
+            "guidanceScale": 3.5,
         }
     ),
 
@@ -57,8 +76,8 @@ MODELS: Dict[str, ModelConfig] = {
         cost_per_image=0.025,
         avg_latency_seconds=5,
         default_params={
-            "num_inference_steps": 28,
-            "guidance_scale": 7.5,
+            "numInferenceSteps": 28,
+            "guidanceScale": 7.5,
         }
     ),
 
@@ -69,8 +88,46 @@ MODELS: Dict[str, ModelConfig] = {
         cost_per_image=0.05,
         avg_latency_seconds=8,
         default_params={
-            "num_inference_steps": 35,
-            "guidance_scale": 7.5,
+            "numInferenceSteps": 35,
+            "guidanceScale": 7.5,
+        }
+    ),
+
+    # ========== ENHANCED MODELS FOR 2-STEP APPROACH ==========
+
+    "flux_dev_scenes": ModelConfig(
+        model_id="flux_dev_scenes",
+        endpoint="fal-ai/flux/dev",
+        model_type=ModelType.BASE_GENERATION,
+        cost_per_image=0.025,
+        avg_latency_seconds=8,
+        supports_negative_prompt=True,
+        supports_seed=True,
+        timeout_seconds=180,
+        default_params={
+            "numInferenceSteps": 35,         # Higher for scene detail
+            "guidanceScale": 8.0,            # Stronger prompt adherence for detailed scenes
+            "imageSize": {"width": 1024, "height": 1024},  # Square format for better composition
+            "enableSafetyChecker": True,
+            "syncMode": True,
+            "numImages": 1
+        }
+    ),
+
+    "pulid_face_swap": ModelConfig(
+        model_id="pulid_face_swap",
+        endpoint="fal-ai/flux-pulid",
+        model_type=ModelType.FACE_SWAP,
+        cost_per_image=0.035,
+        avg_latency_seconds=10,
+        supports_negative_prompt=True,
+        supports_seed=False,
+        timeout_seconds=180,
+        default_params={
+            "numInferenceSteps": 40,         # Balanced quality/speed for face swapping
+            "guidanceScale": 7.0,
+            "idWeight": 0.85,               # High weight for precise face swapping
+            "imageSize": {"width": 1024, "height": 1024},  # Match Step 1 output
         }
     ),
 
@@ -83,9 +140,10 @@ MODELS: Dict[str, ModelConfig] = {
         cost_per_image=0.045,
         avg_latency_seconds=12,
         default_params={
-            "num_inference_steps": 30,
-            "guidance_scale": 7.5,
-            "id_weight": 0.6,  # Lower = better prompt adherence for scenes/poses; Higher = stronger face similarity
+            "numInferenceSteps": 50,         # ✅ MORE STEPS for quality
+            "guidanceScale": 7.5,
+            "idWeight": 0.75,               # ✅ LOWER WEIGHT to prevent face distortion
+            "imageSize": {"width": 768, "height": 768},  # ✅ SQUARE for better scenes
         }
     ),
 
@@ -96,8 +154,44 @@ MODELS: Dict[str, ModelConfig] = {
         cost_per_image=0.04,
         avg_latency_seconds=10,
         default_params={
-            "num_inference_steps": 30,
-            "guidance_scale": 7.5,
+            "numInferenceSteps": 30,
+            "guidanceScale": 7.5,
+        }
+    ),
+
+    # ========== STORYGIFT-STYLE MODELS ==========
+
+    "nano_banana": ModelConfig(
+        model_id="nano_banana",
+        endpoint="fal-ai/nano-banana/edit",
+        model_type=ModelType.FACE_EMBEDDING,
+        cost_per_image=0.04,
+        avg_latency_seconds=8,
+        supports_negative_prompt=True,
+        supports_seed=True,
+        timeout_seconds=180,
+        default_params={
+            # StoryGift configuration from analysis
+            "aspect_ratio": "5:4",                    # StoryGift's optimized aspect ratio
+            "negative_prompt": "black bars, letterbox, scope, cinema bars, blurry, low quality, distorted face",
+        }
+    ),
+
+    # ========== INPAINTING MODELS ==========
+
+    "flux_inpainting": ModelConfig(
+        model_id="flux_inpainting",
+        endpoint="fal-ai/flux-general/inpainting",
+        model_type=ModelType.BASE_GENERATION,
+        cost_per_image=0.03,
+        avg_latency_seconds=8,
+        supports_negative_prompt=True,
+        supports_seed=True,
+        timeout_seconds=180,
+        default_params={
+            "strength": 0.55,            # Sweet spot for face refinement
+            "numInferenceSteps": 30,
+            "guidanceScale": 7.5,
         }
     ),
 

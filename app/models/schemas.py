@@ -86,24 +86,37 @@ class PageData(BaseModel):
     story_text: str
     is_watermarked: bool = False
     is_locked: bool = False
+    is_cover: bool = False  # True for cover page (page 0)
+    # Optional fields for StoryGift compatibility
+    dialogue: Optional[List[dict]] = None  # For dialogue data
+    realistic_prompt: Optional[str] = None  # For generation metadata
+    generation_metadata: Optional[dict] = None  # For analytics
 
 
 class PreviewResponse(BaseModel):
     """Complete preview data for display."""
     preview_id: str
     status: PreviewStatus
+    generation_phase: str = "preview"  # 'preview', 'generating_full', 'complete'
     story_title: str
     child_name: str
-    theme: Theme
-    style: BookStyle
+    theme: str  # Changed from Theme to str for flexibility
+    style: str  # Changed from BookStyle to str for flexibility
+    cover_url: Optional[str] = None  # Dedicated cover image URL
     preview_pages: List[PageData]
     locked_pages: Optional[List[PageData]] = None
-    total_pages: int
+    total_pages: int  # Now 11 (1 cover + 10 story pages)
     preview_pages_count: int
     locked_pages_count: int
     expires_at: datetime
     days_remaining: int
     purchase: dict
+    # PDF URL - only available after payment and remaining page generation
+    pdf_url: Optional[str] = None
+    # Optional fields for StoryGift features
+    testing_mode: Optional[bool] = None  # Indicates if generated in testing mode
+    analyzed_features: Optional[str] = None  # VLM face analysis result
+    generation_model: Optional[str] = None  # Model used (e.g., "nano_banana")
 
 
 class DownloadInfo(BaseModel):

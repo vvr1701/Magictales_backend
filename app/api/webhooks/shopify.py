@@ -135,11 +135,15 @@ async def handle_order_paid(request: Request, background_tasks: BackgroundTasks)
             logger.error("Failed to create order record", order_id=order_id)
             raise HTTPException(status_code=500, detail="Failed to create order")
 
-        # Step 6: Queue PDF generation
+        # Step 6: Queue PDF generation (remaining pages + PDF)
+        # Get child_name from preview data (stored when preview was created)
+        child_name_from_preview = preview.get("child_name", "Child")
+        
         background_tasks.add_task(
             generate_pdf,
             order_id=order_id,
-            preview_id=preview_id
+            preview_id=preview_id,
+            child_name=child_name_from_preview  # CRITICAL: Required by generate_pdf
         )
 
         logger.info(
@@ -216,3 +220,94 @@ async def test_webhook(request: Request):
     except Exception as e:
         logger.error("Test webhook error", error=str(e))
         return {"success": True, "message": "Test webhook error"}
+
+
+@router.post("/test-order-paid")
+async def test_order_paid(request: Request, background_tasks: BackgroundTasks):
+    """
+    TEST ENDPOINT: Simulate order-paid webhook without HMAC verification.
+    
+    For local development only! Does not verify HMAC or shop domain.
+    
+    Usage:
+    POST /webhooks/shopify/test-order-paid
+    {
+        "preview_id": "your-preview-id",
+        "customer_email": "test@example.com"
+    }
+    """
+    try:
+        body = await request.body()
+        webhook_data = json.loads(body.decode('utf-8'))
+        
+        preview_id = webhook_data.get("preview_id")
+        customer_email = webhook_data.get("customer_email", "test@example.com")
+        order_id = webhook_data.get("order_id", f"test_{datetime.utcnow().timestamp()}")
+        
+        if not preview_id:
+            raise HTTPException(status_code=400, detail="preview_id is required")
+        
+        logger.info(
+            "TEST order-paid webhook received",
+            preview_id=preview_id,
+            order_id=order_id
+        )
+        
+        # Verify preview exists
+        db = get_db()
+        preview_response = db.table("previews").select("*").eq("preview_id", preview_id).execute()
+        
+        if not preview_response.data:
+            raise HTTPException(status_code=404, detail=f"Preview not found: {preview_id}")
+        
+        preview = preview_response.data[0]
+        
+        # Create order record
+        order_data = {
+            "order_id": str(order_id),
+            "order_number": "TEST-001",
+            "preview_id": preview_id,
+            "customer_email": customer_email,
+            "customer_name": "Test User",
+            "status": OrderStatus.PAID.value,
+            "shipping_address": None,
+            "error_message": None,
+            "retry_count": 0,
+            "created_at": datetime.utcnow().isoformat(),
+            "expires_at": (datetime.utcnow() + timedelta(days=30)).isoformat()
+        }
+        
+        # Check if order already exists
+        existing = db.table("orders").select("*").eq("order_id", str(order_id)).execute()
+        if existing.data:
+            logger.info("Order already exists, skipping creation", order_id=order_id)
+        else:
+            db.table("orders").insert(order_data).execute()
+        
+        # Queue PDF generation - must pass child_name
+        child_name_from_preview = preview.get("child_name", "Child")
+        background_tasks.add_task(
+            generate_pdf,
+            order_id=str(order_id),
+            preview_id=preview_id,
+            child_name=child_name_from_preview
+        )
+        
+        logger.info(
+            "TEST order processed - PDF generation queued",
+            order_id=order_id,
+            preview_id=preview_id
+        )
+        
+        return {
+            "success": True,
+            "message": "Test order created and PDF generation started",
+            "order_id": str(order_id),
+            "preview_id": preview_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Test order-paid failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

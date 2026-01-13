@@ -4,13 +4,39 @@ FastAPI application setup.
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import structlog
 import logging
+from logging.handlers import RotatingFileHandler
+import os
+from pathlib import Path
 
 from app.config import get_settings
 from app.api.router import api_router, health_router, webhook_router
+from app.routers import proxy
 from app.core.exceptions import ZelavoBaseException
+
+# Create logs directory if it doesn't exist
+LOGS_DIR = Path(__file__).parent.parent / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+
+# Configure Python's standard logging to write to file
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[
+        # Console handler
+        logging.StreamHandler(),
+        # File handler with rotation (10MB max, keep 5 backups)
+        RotatingFileHandler(
+            LOGS_DIR / "app.log",
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=5,
+            encoding="utf-8"
+        )
+    ]
+)
 
 # Configure structlog
 structlog.configure(
@@ -41,17 +67,22 @@ app = FastAPI(
     redoc_url="/redoc" if get_settings().app_debug else None,
 )
 
-# CORS Configuration
+# CORS Configuration - Allow Shopify domains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "*",  # Allow all origins for Shopify App Proxy
         "http://localhost:3000",  # React dev server
-        "http://localhost:5173",  # Vite dev server
+        "http://localhost:5173",  # Vite default dev server
+        "http://0.0.0.0:3000",    # Vite with host 0.0.0.0
         "https://zelavokids.com",  # Production frontend
         "https://*.zelavokids.com",  # Subdomains
+        "https://*.myshopify.com",  # Shopify stores
+        "https://admin.shopify.com",  # Shopify Admin
+        "https://cdn.shopify.com",  # Shopify CDN
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -124,7 +155,19 @@ async def shutdown_event():
 # Include routers
 app.include_router(health_router)  # Health check at root level
 app.include_router(api_router, prefix="/api")  # API endpoints
+app.include_router(api_router, prefix="/proxy/api")  # Shopify App Proxy mirror
 app.include_router(webhook_router, prefix="/webhooks")  # Webhooks
+app.include_router(proxy.router)  # Shopify App Proxy frontend serving (MUST BE LAST - has catch-all)
+
+# Mount static assets for React frontend (CSS/JS)
+# Path: magictales_backend/../Magictales/dist/assets (i.e. sibling Magictales folder)
+_frontend_assets_path = Path(__file__).parent.parent.parent / "Magictales" / "dist" / "assets"
+if _frontend_assets_path.exists():
+    app.mount("/proxy/assets", StaticFiles(directory=str(_frontend_assets_path)), name="proxy-assets")
+    logger.info("Mounted frontend assets", path=str(_frontend_assets_path))
+else:
+    logger.warning("Frontend assets not found", path=str(_frontend_assets_path))
+
 
 
 @app.get("/")

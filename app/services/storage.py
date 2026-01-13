@@ -46,6 +46,30 @@ class StorageService:
             )
         return self._s3_client
 
+    async def upload_image_from_buffer(
+        self,
+        image_buffer: BytesIO,
+        path: str,
+        content_type: str = "image/jpeg"
+    ) -> str:
+        """
+        Upload image from BytesIO buffer to R2 and return public URL.
+
+        Args:
+            image_buffer: BytesIO buffer containing image data
+            path: Path in bucket (e.g., "previews/preview_id/page_01.jpg")
+            content_type: MIME type
+
+        Returns:
+            Public URL of uploaded image
+        """
+        # Convert BytesIO buffer to bytes
+        image_buffer.seek(0)  # Ensure we're at the beginning
+        image_bytes = image_buffer.read()
+
+        # Use the existing upload_image method
+        return await self.upload_image(image_bytes, path, content_type)
+
     async def upload_image(
         self,
         image_bytes: bytes,

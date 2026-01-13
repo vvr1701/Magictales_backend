@@ -30,12 +30,22 @@ class Settings(BaseSettings):
     # AI Services
     fal_api_key: str
 
-    # AI Model Configuration
-    realistic_model: str = "flux_pulid"
+    # StoryGift AI Model Configuration
+    realistic_model: str = "nano_banana"  # Primary model: NanoBanana with VLM analysis
 
-    # Fallback Models
+    # Legacy model configurations (kept for backward compatibility)
     fallback_base_model: str = "flux_schnell"
-    fallback_realistic_model: str = "instant_id"
+    fallback_realistic_model: str = "flux_pulid"
+
+    # Testing Configuration
+    testing_mode_enabled: bool = True  # Toggle for development vs production
+    testing_mode_pages: int = 5        # Generate only 5 pages in testing mode
+    production_pages: int = 10         # Full 10 pages for production
+
+    # NanoBanana Specific Settings
+    nanobana_vlm_model: str = "fal-ai/llava-next"  # Vision Language Model for face analysis
+    nanobana_aspect_ratio: str = "5:4"            # StoryGift's optimized aspect ratio
+    nanobana_quality: float = 0.95                # JPEG quality for PDF generation
 
     # Model Settings
     default_seed: int = 42
@@ -46,18 +56,24 @@ class Settings(BaseSettings):
     enable_model_fallback: bool = True
     enable_model_logging: bool = True
 
-    # Shopify
-    shopify_shop_domain: str
-    shopify_webhook_secret: str
+    # Shopify (optional in development, required in production)
+    shopify_shop_domain: str = ""
+    shopify_webhook_secret: str = ""
+    shopify_api_secret: str = ""  # For App Proxy HMAC verification
 
     # Rate Limiting
     rate_limit_previews_per_day: int = 3
     rate_limit_uploads_per_hour: int = 10
 
-    # Generation Settings
-    preview_pages: int = 5
-    full_book_pages: int = 10
+    # Email (Resend)
+    resend_api_key: str = ""  # Get from resend.com
+    from_email: str = "MagicTales <noreply@zelavokids.com>"
+
+    # StoryGift Generation Settings
+    default_theme: str = "storygift_magic_castle"  # Primary StoryGift theme
+    default_style: str = "photorealistic"          # Only style supported now
     image_quality: str = "high"
+    pdf_page_size: str = "10x10"                   # Square format (inches) for StoryGift layout
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -11,6 +11,7 @@ import structlog
 from app.config import get_settings
 from app.ai.base import FaceEmbeddingService, GenerationResult
 from app.ai.model_registry import ModelConfig
+from app.stories.templates import FACE_ANCHOR_CLAUSE
 
 logger = structlog.get_logger()
 
@@ -29,18 +30,36 @@ class FluxPulidService(FaceEmbeddingService):
         face_image_url: str,
         negative_prompt: Optional[str] = None,
         seed: Optional[int] = None,
+        append_face_anchor: bool = True,
+        id_weight: Optional[float] = None,
+        base_image_url: Optional[str] = None,  # NEW: For 2-step face swapping
         **kwargs
     ) -> GenerationResult:
         """Generate image with embedded face."""
 
         start_time = time.time()
 
+        # ✅ PuLID handles face embedding automatically - NO text instructions needed
+        enhanced_prompt = prompt  # Keep scene prompt simple
+        logger.info("Using simple prompt - PuLID handles face embedding via reference image")
+
         payload = {
-            "prompt": prompt,
+            "prompt": enhanced_prompt,
             "reference_image_url": face_image_url,
             **self.config.default_params,
             **kwargs
         }
+
+        # Allow override of id_weight for fine-tuning
+        if id_weight is not None:
+            payload["idWeight"] = id_weight
+
+        # NEW: Support for 2-step approach - flux-pulid doesn't support image_url for base images
+        # Instead, we need to include scene description in the prompt
+        if base_image_url:
+            logger.warning("flux-pulid doesn't support base image face swapping - using scene prompt instead",
+                         base_image_preview=base_image_url[:80])
+            # The prompt should already contain the scene description from Step 1
 
         if negative_prompt:
             payload["negative_prompt"] = negative_prompt

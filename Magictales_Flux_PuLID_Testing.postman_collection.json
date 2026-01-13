@@ -1,0 +1,307 @@
+{
+	"info": {
+		"_postman_id": "flux-pulid-testing-collection",
+		"name": "Magictales Flux PuLID Testing",
+		"description": "Complete testing suite for Flux PuLID implementation with real image generation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"health"
+					]
+				},
+				"description": "Verify API is running"
+			}
+		},
+		{
+			"name": "2. Upload Child Photo",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "multipart/form-data"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "",
+							"description": "Child photo (JPG/PNG, clear face visible)"
+						},
+						{
+							"key": "child_name",
+							"value": "Emma",
+							"type": "text"
+						},
+						{
+							"key": "child_age",
+							"value": "7",
+							"type": "text"
+						},
+						{
+							"key": "child_gender",
+							"value": "female",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/upload-photo",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"upload-photo"
+					]
+				},
+				"description": "Upload child photo with face validation using MediaPipe"
+			}
+		},
+		{
+			"name": "3. Create Preview (Flux PuLID)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"child_photo_url\": \"https://example.com/uploads/child_photo.jpg\",\n  \"child_name\": \"Emma\",\n  \"child_age\": 7,\n  \"child_gender\": \"female\",\n  \"story_theme\": \"magic_castle\",\n  \"style\": \"photorealistic\",\n  \"preview_pages\": 5\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/preview",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"preview"
+					]
+				},
+				"description": "Start preview generation (5 pages) using Flux PuLID pipeline. Returns job_id for status polling."
+			}
+		},
+		{
+			"name": "4. Check Preview Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/preview-status/{{job_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"preview-status",
+						"{{job_id}}"
+					]
+				},
+				"description": "Poll generation progress (0-100%). Use job_id from preview creation response."
+			}
+		},
+		{
+			"name": "5. Get Preview Results",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/preview/{{preview_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"preview",
+						"{{preview_id}}"
+					]
+				},
+				"description": "Get watermarked preview images and story text. Use preview_id from status response."
+			}
+		},
+		{
+			"name": "6. Test Single Image Generation",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{fal_api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"child_photo_url\": \"https://example.com/test_photo.jpg\",\n  \"scene_prompt\": \"A young wizard stands before magical castle gates, looking excited and ready for adventure\",\n  \"child_name\": \"Emma\",\n  \"child_age\": 7,\n  \"child_gender\": \"female\",\n  \"costume\": \"purple wizard robe with gold star embroidery\",\n  \"seed\": 12345,\n  \"id_weight\": 0.90\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/test/single-generation",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"test",
+						"single-generation"
+					]
+				},
+				"description": "Test single image generation with enhanced PuLID (id_weight: 0.90)"
+			}
+		},
+		{
+			"name": "7. Generate Full Comic",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"preview_id\": \"{{preview_id}}\",\n  \"generate_type\": \"comic_panels\",\n  \"total_pages\": 10\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/generate/full-comic",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"generate",
+						"full-comic"
+					]
+				},
+				"description": "Generate full 10-page comic with 20 panels using Flux PuLID"
+			}
+		},
+		{
+			"name": "8. Generate Comic PDF",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"preview_id\": \"{{preview_id}}\",\n  \"format\": \"comic\",\n  \"title\": \"Emma's First Day of Magic\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/generate/pdf",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"generate",
+						"pdf"
+					]
+				},
+				"description": "Generate StoryGift-style comic PDF from generated pages"
+			}
+		},
+		{
+			"name": "9. Test Pipeline Direct",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"method\": \"generate_page\",\n  \"params\": {\n    \"scene_prompt\": \"A young wizard stands before magical castle gates, looking excited and ready for adventure\",\n    \"child_photo_url\": \"https://example.com/photo.jpg\",\n    \"child_name\": \"Emma\",\n    \"child_age\": 7,\n    \"child_gender\": \"female\",\n    \"costume\": \"purple wizard robe with gold star embroidery\",\n    \"seed\": 12345,\n    \"id_weight\": 0.90\n  }\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/test/pipeline",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"test",
+						"pipeline"
+					]
+				},
+				"description": "Direct pipeline testing for development"
+			}
+		},
+		{
+			"name": "10. Validate Face Anchor",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"photo_url\": \"https://example.com/test_photo.jpg\",\n  \"test_prompt\": \"A young adventurer exploring a magical forest\",\n  \"enable_face_anchor\": true,\n  \"id_weight\": 0.90\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/test/face-anchor",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"test",
+						"face-anchor"
+					]
+				},
+				"description": "Test face-anchor functionality for identity preservation"
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"description": "Base URL for local development"
+		},
+		{
+			"key": "job_id",
+			"value": "",
+			"description": "Job ID from preview creation (auto-updated)"
+		},
+		{
+			"key": "preview_id",
+			"value": "",
+			"description": "Preview ID from status response (auto-updated)"
+		},
+		{
+			"key": "fal_api_key",
+			"value": "",
+			"description": "Your Fal.ai API key"
+		}
+	]
+}

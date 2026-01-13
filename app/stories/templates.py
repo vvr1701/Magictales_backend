@@ -2,7 +2,7 @@
 Story template structure and base classes.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List
 
 
@@ -13,10 +13,65 @@ class PageTemplate:
     scene_description: str
     realistic_prompt: str     # For Flux PuLID (photorealistic only)
     story_text: str           # Text with {name} placeholder
+    artistic_prompt: Optional[str] = None  # For comic book style with Flux Dev + Face Swap
     costume: Optional[str] = None
     scene_type: Optional[str] = None  # For cinematic enhancement: "heroic", "intimate", "action", etc.
     camera_style: Optional[str] = None  # Override camera angle if needed
     lighting_style: Optional[str] = None  # Override lighting if needed
+
+
+# Base cover prompt template with zone-based composition for typography
+COVER_PROMPT_TEMPLATE = """
+Create a children's fantasy book cover illustration with intentional negative space for typography.
+This image must contain NO text of any kind.
+
+COMPOSITION & LAYOUT (STRICT):
+
+TOP HEADER ZONE (Upper 25% of image):
+- Empty atmospheric background only
+- {header_atmosphere}
+- No characters, no faces, no animals, no objects
+- Clean, calm negative space suitable for placing a title later
+
+MAIN HERO ZONE (Middle 60% of image):
+- A brave young child named {name} stands as the clear hero
+- Position the child in the CENTER-LOWER portion of the frame
+- The child's head and face must be fully BELOW the top header zone
+- CRITICAL: The child's face must be PHOTOREALISTIC with natural skin texture, realistic eyes, and natural facial features - like a real photograph of a child
+- Face fully visible, centered, unobstructed, expressive and confident
+- Natural lighting on the face, no fantasy glow effects on the skin
+- No glowing effects, vines, particles, or objects crossing the face
+- Child wearing {costume}
+- {magical_elements}
+
+FOOTER ZONE (Bottom 15% of image):
+- {footer_description}
+- Calm and uncluttered
+- Suitable space for adding a small name or subtitle later
+
+STYLE & MOOD:
+- Photorealistic child portrait in a fantasy setting
+- The child's face and skin MUST look like a real photograph - natural skin, real eye details, natural hair texture
+- Fantasy background elements can be stylized, but the child must look photographically real
+- Warm cinematic lighting, golden magical tones
+- Soft depth of field, subtle vignette at edges
+- Whimsical, safe, and emotionally warm for children
+
+CAMERA & FRAMING:
+- Square 1:1 aspect ratio
+- Medium to full-body framing
+- Eye-level or slightly low-angle (heroic but gentle)
+- Balanced composition with strong subject separation
+
+ABSOLUTE RULES:
+- NO text, letters, words, symbols, logos, or watermarks
+- NO text-like shapes or glowing runes
+- NO cropping of head or face
+- Face must remain clean and clear
+- Child's face must be photorealistic, not illustrated or stylized
+
+Print-quality, cover-ready illustration with photorealistic child.
+"""
 
 
 @dataclass
@@ -28,10 +83,26 @@ class StoryTemplate:
     default_costume: str
     protagonist_description: str
     pages: List[PageTemplate]
+    # Cover page settings
+    cover_setting: Optional[str] = None  # Theme-specific cover setting description
+    cover_costume: Optional[str] = None  # Special costume for cover (if different)
+    cover_header_atmosphere: Optional[str] = None  # Top zone atmosphere
+    cover_magical_elements: Optional[str] = None  # Magical elements around child
+    cover_footer_description: Optional[str] = None  # Footer zone description
 
     def get_title(self, child_name: str) -> str:
         """Get formatted title for this story."""
         return self.title_template.format(name=child_name)
+    
+    def get_cover_prompt(self, child_name: str) -> str:
+        """Get formatted cover page prompt with zone-based composition."""
+        return COVER_PROMPT_TEMPLATE.format(
+            name=child_name,
+            header_atmosphere=self.cover_header_atmosphere or "Dark or softly glowing magical sky, forest canopy, or mist",
+            costume=self.cover_costume or self.default_costume,
+            magical_elements=self.cover_magical_elements or "Magical sparkles and particles surround the body, but NOT the face",
+            footer_description=self.cover_footer_description or "Ground, forest floor, path, or subtle darker gradient"
+        )
 
     def get_page_prompt(
         self,
@@ -48,20 +119,28 @@ class StoryTemplate:
 
         page = self.pages[page_number - 1]
 
-        # Get base prompt (photorealistic only)
-        base_prompt = page.realistic_prompt
+        # Choose appropriate prompt based on style
+        if style == "artistic" and page.artistic_prompt:
+            base_prompt = page.artistic_prompt
+            style_block = ARTISTIC_STYLE_BLOCK
+        else:
+            base_prompt = page.realistic_prompt
+            style_block = REALISTIC_STYLE_BLOCK
 
         # Build protagonist description
-        protagonist = f"a {child_age}-year-old {child_gender} child with the exact face from the reference photo, {self.protagonist_description}"
+        if style == "artistic":
+            protagonist = f"a {child_age}-year-old {child_gender} child character, {self.protagonist_description}"
+        else:
+            protagonist = f"a {child_age}-year-old {child_gender} child with the exact face from the reference photo, {self.protagonist_description}"
 
         # Get costume for this page
         costume = page.costume or self.default_costume
 
-        # Apply cinematic enhancements if enabled
-        enhanced_style_block = REALISTIC_STYLE_BLOCK
-        if enable_cinematic and page.scene_type:
+        # Apply cinematic enhancements if enabled and using realistic style
+        enhanced_style_block = style_block
+        if enable_cinematic and page.scene_type and style != "artistic":
             enhanced_style_block = self._enhance_with_cinematics(
-                REALISTIC_STYLE_BLOCK,
+                style_block,
                 page.scene_type,
                 page.camera_style,
                 page.lighting_style
@@ -73,8 +152,14 @@ class StoryTemplate:
             costume=costume,
             age=child_age,
             gender=child_gender,
-            realistic_style_block=enhanced_style_block
+            realistic_style_block=enhanced_style_block,
+            artistic_style_block=enhanced_style_block
         )
+
+        # Add face composition requirements for artistic style (needed for face swap)
+        if style == "artistic":
+            face_requirements = FACE_COMPOSITION_REQUIREMENTS
+            final_prompt = final_prompt.strip() + "\n\n" + face_requirements.strip()
 
         return {
             "prompt": final_prompt.strip(),
@@ -132,6 +217,32 @@ class StoryTemplate:
         return page.story_text.format(name=child_name)
 
 
+@dataclass
+class DialogueBubble:
+    """Single speech bubble in a comic panel."""
+    speaker: str  # Character name or "{name}" placeholder
+    text: str
+    position: str = "left"  # "left", "right", "bottom"
+
+
+@dataclass
+class ComicPanel:
+    """Single comic panel with image prompt and dialogue."""
+    image_prompt: str
+    dialogue: List[DialogueBubble] = field(default_factory=list)
+    characters_in_panel: List[str] = field(default_factory=list)
+
+
+@dataclass
+class ComicPageTemplate:
+    """A comic book page with two side-by-side panels."""
+    page_number: int
+    narrative: str  # The story text displayed below panels
+    left_panel: ComicPanel
+    right_panel: ComicPanel
+    costume: Optional[str] = None
+
+
 # Enhanced cinematic style blocks for different scene types
 CINEMATIC_MODIFIERS = {
     "camera_angles": {
@@ -164,6 +275,30 @@ CINEMATIC_MODIFIERS = {
     }
 }
 
+
+# ===================
+# FACE-ANCHOR PROMPTS FOR IDENTITY PRESERVATION
+# ===================
+
+# Face-anchor clause to append to ALL image generation prompts
+# This ensures consistent facial identity across all story pages
+FACE_ANCHOR_CLAUSE = """
+[face-anchor] Preserve the facial identity from reference photo: maintain exact facial structure,
+same eye shape and spacing, same nose shape, natural skin texture matching reference,
+child-proportioned face with age-appropriate features, consistent expression style,
+preserve subtle facial characteristics across all pose and lighting variations.
+"""
+
+# Storybook-optimized style block for PuLID generation
+STORYBOOK_ILLUSTRATION_STYLE = """
+Whimsical storybook illustration, watercolor art style with soft edges,
+golden hour warm lighting, rich vibrant colors, ultra-fine brushwork details,
+children's book aesthetic, magical dreamy atmosphere, professional illustration quality,
+consistent character design throughout, expressive dynamic poses,
+high detail 8K quality, soft shadows, enchanted fairy tale feel.
+"""
+
+
 # Enhanced style block for photorealistic prompts with cinematic elements
 REALISTIC_STYLE_BLOCK = """
 Ultra-realistic cinematic photography, professional DSLR quality with ARRI Alexa camera,
@@ -173,11 +308,35 @@ lifelike details and textures, photojournalistic style, magical atmosphere,
 film grain texture, color grading, cinematic composition.
 """
 
-# Negative prompt for photorealistic style
+# Style block for artistic comic book style
+ARTISTIC_STYLE_BLOCK = """
+Comic book illustration style, graphic novel art, professional comic book artist,
+detailed line art with bold outlines, vibrant saturated colors, dynamic comic book lighting,
+DC/Marvel comic style, superhero comic book aesthetic, digital comic book art,
+speech bubbles and sound effects integrated naturally, comic book panel composition,
+detailed fantasy illustration style, high quality comic book artwork.
+"""
+
+# Face composition requirements for face swap compatibility
+# These ensure the generated image has a detectable face for the face swap API
+FACE_COMPOSITION_REQUIREMENTS = """
+[CRITICAL FACE REQUIREMENTS - MUST FOLLOW]
+- The child character MUST be the PRIMARY SUBJECT in the foreground
+- Child's FACE must be CLEARLY VISIBLE and FRONT-FACING (facing camera, 0-30 degree angle maximum)
+- Face must occupy at least 15-20% of the total image area
+- FULL FACE visible: both eyes, nose, and mouth clearly shown, no obstructions
+- Face well-lit with even lighting, no harsh shadows hiding facial features
+- NO profile views, NO back-of-head shots, NO obscured faces
+- Child positioned prominently in frame, not small in background
+- Portrait or upper-body composition preferred
+- Face must have clear, defined features suitable for face detection
+"""
+
+# Negative prompt for all styles
 NEGATIVE_PROMPT = """
 blurry, low quality, distorted, deformed, ugly, bad anatomy, extra limbs,
 extra fingers, mutated hands, poorly drawn face, mutation, watermark,
-text overlay, signature, cropped, out of frame, duplicate, multiple heads,
-anime style, manga style, chibi, dark horror scary, gore violence,
-adult mature content
+signature, cropped, out of frame, duplicate, multiple heads,
+dark horror scary, gore violence, adult mature content, photorealistic when comic style,
+face obscured, back of head, profile view only, face in shadow, tiny distant figure
 """

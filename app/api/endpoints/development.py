@@ -11,11 +11,73 @@ import structlog
 
 from app.models.database import get_db
 from app.models.enums import OrderStatus, PreviewStatus
-from app.background.tasks import generate_pdf
+from app.background.tasks import generate_pdf as generate_pdf_task
 from app.config import get_settings
 
 logger = structlog.get_logger()
 router = APIRouter()
+
+
+@router.get("/debug/preview/{preview_id}")
+async def debug_preview(preview_id: str):
+    """
+    Debug endpoint to see what's actually stored in the database.
+    Shows raw data from previews and generation_jobs tables.
+    """
+    try:
+        db = get_db()
+
+        # Get preview record
+        preview_result = db.table("previews").select("*").eq("preview_id", preview_id).execute()
+
+        if not preview_result.data:
+            raise HTTPException(status_code=404, detail=f"Preview {preview_id} not found")
+
+        preview = preview_result.data[0]
+
+        # Get job record
+        job_result = db.table("generation_jobs").select("*").eq("reference_id", preview_id).execute()
+
+        job = job_result.data[0] if job_result.data else None
+
+        return {
+            "preview_id": preview_id,
+            "preview_data": {
+                "status": preview.get("status"),
+                "theme": preview.get("theme"),
+                "style": preview.get("style"),
+                "child_name": preview.get("child_name"),
+                "photo_url": preview.get("photo_url"),
+                "hires_images": preview.get("hires_images"),
+                "hires_images_type": type(preview.get("hires_images")).__name__,
+                "hires_images_count": len(preview.get("hires_images", [])) if isinstance(preview.get("hires_images"), list) else "not_a_list",
+                "preview_images": preview.get("preview_images"),
+                "preview_images_type": type(preview.get("preview_images")).__name__,
+                "preview_images_count": len(preview.get("preview_images", [])) if isinstance(preview.get("preview_images"), list) else "not_a_list",
+                "story_pages": preview.get("story_pages"),
+                "story_pages_type": type(preview.get("story_pages")).__name__,
+                "story_pages_count": len(preview.get("story_pages", [])) if isinstance(preview.get("story_pages"), list) else "not_a_list",
+                "created_at": preview.get("created_at"),
+            },
+            "job_data": {
+                "job_id": job.get("job_id") if job else None,
+                "status": job.get("status") if job else None,
+                "progress": job.get("progress") if job else None,
+                "current_step": job.get("current_step") if job else None,
+                "error_message": job.get("error_message") if job else None,
+                "result_data": job.get("result_data") if job else None,
+                "queued_at": job.get("queued_at") if job else None,
+                "started_at": job.get("started_at") if job else None,
+                "completed_at": job.get("completed_at") if job else None,
+                "attempts": job.get("attempts") if job else None,
+            } if job else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Debug endpoint failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 class DevPdfGenerationRequest(BaseModel):
@@ -111,38 +173,43 @@ async def dev_generate_pdf(
                 status=existing_order["status"]
             )
             
-            # If order failed, allow retry by resetting status and re-triggering PDF generation
-            if existing_order["status"] == OrderStatus.FAILED.value:
-                logger.info("Retrying failed order", order_id=existing_order["order_id"])
+            # If order failed OR paid but no PDF generated yet, allow retry
+            should_retry = (
+                existing_order["status"] == OrderStatus.FAILED.value or
+                (existing_order["status"] == OrderStatus.PAID.value and not existing_order.get("pdf_url"))
+            )
+            
+            if should_retry:
+                logger.info("Retrying PDF generation", order_id=existing_order["order_id"], status=existing_order["status"])
                 
-                # Reset order status to PAID for retry
+                # Update order status for retry
                 db.table("orders").update({
-                    "status": OrderStatus.PAID.value,
+                    "status": OrderStatus.GENERATING_PDF.value,
                     "error_message": None,
-                    "last_error": None,
                     "retry_count": existing_order.get("retry_count", 0) + 1
                 }).eq("order_id", existing_order["order_id"]).execute()
                 
                 # Trigger PDF generation again
                 background_tasks.add_task(
-                    generate_pdf,
+                    generate_pdf_task,
                     order_id=existing_order["order_id"],
-                    preview_id=request.preview_id
+                    preview_id=request.preview_id,
+                    child_name=preview["child_name"]
                 )
                 
                 return DevPdfGenerationResponse(
                     success=True,
                     order_id=existing_order["order_id"],
                     preview_id=request.preview_id,
-                    message=f"Retrying PDF generation for failed order (attempt #{existing_order.get('retry_count', 0) + 1})"
+                    message=f"PDF generation started (attempt #{existing_order.get('retry_count', 0) + 1})"
                 )
             
-            # For non-failed orders, return existing order info
+            # For completed orders, return existing order info
             return DevPdfGenerationResponse(
                 success=True,
                 order_id=existing_order["order_id"],
                 preview_id=request.preview_id,
-                message=f"Order already exists with status: {existing_order['status']}"
+                message=f"Order already exists with status: {existing_order['status']}. PDF URL: {existing_order.get('pdf_url', 'none')}"
             )
 
         # 3. Generate order ID and create order record
@@ -178,9 +245,10 @@ async def dev_generate_pdf(
 
         # 4. Trigger PDF generation background task
         background_tasks.add_task(
-            generate_pdf,
+            generate_pdf_task,
             order_id=order_id,
-            preview_id=request.preview_id
+            preview_id=request.preview_id,
+            child_name=preview["child_name"]
         )
 
         logger.info(
@@ -288,3 +356,232 @@ async def dev_info():
             "6. Download PDF: GET /api/download/{order_id}"
         ]
     }
+
+
+@router.post("/test/single-generation")
+async def test_single_generation(request: dict):
+    """Test single image generation with Flux PuLID."""
+    try:
+        from app.ai.factory import get_storybook_pipeline
+
+        pipeline = get_storybook_pipeline()
+
+        result = await pipeline.generate_page(
+            scene_prompt=request["scene_prompt"],
+            child_photo_url=request["child_photo_url"],
+            child_name=request["child_name"],
+            child_age=request["child_age"],
+            child_gender=request["child_gender"],
+            output_path=f"test_generations/single_{int(time.time())}.jpg",
+            costume=request.get("costume", "casual outfit"),
+            seed=request.get("seed", 12345),
+            id_weight=request.get("id_weight", 0.90)
+        )
+
+        return {
+            "success": result.success,
+            "image_url": result.image_url if result.success else None,
+            "cost": result.cost,
+            "latency_ms": result.latency_ms,
+            "model_used": result.model_used,
+            "metadata": result.metadata,
+            "error_message": result.error_message if not result.success else None
+        }
+
+    except Exception as e:
+        logger.error("Single generation test failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
+
+
+@router.post("/test/pipeline")
+async def test_pipeline_direct(request: dict):
+    """Direct pipeline testing for development."""
+    try:
+        from app.ai.factory import get_storybook_pipeline
+
+        pipeline = get_storybook_pipeline()
+        method = request.get("method", "generate_page")
+        params = request.get("params", {})
+
+        if method == "generate_page":
+            result = await pipeline.generate_page(**params)
+            return {
+                "success": result.success,
+                "result": {
+                    "image_url": result.image_url,
+                    "cost": result.cost,
+                    "latency_ms": result.latency_ms,
+                    "model_used": result.model_used,
+                    "metadata": result.metadata
+                },
+                "error": result.error_message if not result.success else None
+            }
+        else:
+            return {"error": f"Method {method} not supported"}
+
+    except Exception as e:
+        logger.error("Pipeline test failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Pipeline test failed: {str(e)}")
+
+
+@router.post("/test/face-anchor")
+async def test_face_anchor(request: dict):
+    """Test face-anchor functionality for identity preservation."""
+    try:
+        from app.ai.factory import get_storybook_pipeline
+
+        pipeline = get_storybook_pipeline()
+
+        result = await pipeline.generate_page(
+            scene_prompt=request["test_prompt"],
+            child_photo_url=request["photo_url"],
+            child_name="TestChild",
+            child_age=8,
+            child_gender="female",
+            output_path=f"test_generations/face_anchor_{int(time.time())}.jpg",
+            costume="casual outfit",
+            id_weight=request.get("id_weight", 0.90)
+        )
+
+        return {
+            "success": result.success,
+            "face_anchor_enabled": request.get("enable_face_anchor", True),
+            "id_weight_used": request.get("id_weight", 0.90),
+            "result": {
+                "image_url": result.image_url,
+                "cost": result.cost,
+                "latency_ms": result.latency_ms,
+                "metadata": result.metadata
+            } if result.success else None,
+            "error": result.error_message if not result.success else None
+        }
+
+    except Exception as e:
+        logger.error("Face anchor test failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Face anchor test failed: {str(e)}")
+
+
+import time
+
+
+@router.post("/generate/full-comic")
+async def generate_full_comic(request: dict):
+    """Generate full 10-page comic with 20 panels using Flux PuLID."""
+    try:
+        from app.ai.factory import get_storybook_pipeline
+        from app.stories.themes.magic_castle import MAGIC_CASTLE_COMIC_THEME
+
+        pipeline = get_storybook_pipeline()
+        preview_id = request["preview_id"]
+
+        logger.info("Starting full comic generation", preview_id=preview_id)
+
+        # Get preview data to fetch child info
+        db = get_db()
+        preview_response = db.table("previews").select("*").eq("preview_id", preview_id).execute()
+
+        if not preview_response.data:
+            raise HTTPException(status_code=404, detail="Preview not found")
+
+        preview = preview_response.data[0]
+
+        result = await pipeline.generate_comic_panels(
+            comic_pages=MAGIC_CASTLE_COMIC_THEME,
+            child_photo_url=preview["photo_url"],
+            child_name=preview["child_name"],
+            child_age=preview["child_age"],
+            child_gender=preview["child_gender"],
+            preview_id=preview_id,
+            id_weight=0.90
+        )
+
+        return {
+            "success": True,
+            "preview_id": preview_id,
+            "pages_generated": len(result["pages"]),
+            "failed_panels": len(result["failed_panels"]),
+            "total_cost": result["total_cost"],
+            "total_time_ms": result["total_latency_ms"],
+            "result_summary": {
+                "total_panels": len(result["pages"]) * 2,
+                "success_rate": len(result["pages"]) / len(MAGIC_CASTLE_COMIC_THEME) * 100,
+                "cost_per_panel": result["total_cost"] / (len(result["pages"]) * 2) if result["pages"] else 0
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Full comic generation failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Comic generation failed: {str(e)}")
+
+
+@router.post("/generate/pdf")
+async def generate_pdf(request: dict):
+    """Generate StoryGift-style comic PDF from generated pages."""
+    try:
+        from app.services.comic_pdf_generator import ComicPDFGeneratorService
+
+        preview_id = request["preview_id"]
+        pdf_format = request.get("format", "comic")
+        title = request.get("title", "Magical Adventure")
+
+        logger.info("Starting PDF generation", preview_id=preview_id)
+
+        # Get preview data
+        db = get_db()
+        preview_response = db.table("previews").select("*").eq("preview_id", preview_id).execute()
+
+        if not preview_response.data:
+            raise HTTPException(status_code=404, detail="Preview not found")
+
+        preview = preview_response.data[0]
+
+        # Check if we have generated pages
+        if not preview.get("hires_images"):
+            raise HTTPException(status_code=400, detail="No generated images found. Generate comic first.")
+
+        pdf_generator = ComicPDFGeneratorService()
+
+        # For this test, we'll use the existing story pages format
+        # In a real implementation, this would use the proper page structure
+        test_pages = []
+        for i, story_page in enumerate(preview.get("story_pages", []), 1):
+            test_pages.append({
+                "page_number": i,
+                "narrative": story_page.get("text", f"Page {i} story"),
+                "left_panel": {
+                    "image_url": f"https://example.com/page_{i}_left.jpg",
+                    "dialogue": [{"speaker": "HERO", "text": "This is test dialogue"}]
+                },
+                "right_panel": {
+                    "image_url": f"https://example.com/page_{i}_right.jpg",
+                    "dialogue": [{"speaker": "FRIEND", "text": "Response dialogue"}]
+                }
+            })
+
+        pdf_bytes = await pdf_generator.generate_comic_pdf(
+            pages=test_pages[:5],  # First 5 pages for testing
+            title=title,
+            child_name=preview["child_name"],
+            theme="magic_castle"
+        )
+
+        # In a real implementation, this would be saved to storage
+        pdf_filename = f"test_comic_{preview_id}.pdf"
+
+        return {
+            "success": True,
+            "pdf_url": f"https://storage.com/final/{pdf_filename}",
+            "pdf_size_bytes": len(pdf_bytes),
+            "pages_included": len(test_pages[:5]),
+            "format": pdf_format,
+            "title": title,
+            "download_expires": "2024-12-30T12:00:00Z"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("PDF generation failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")

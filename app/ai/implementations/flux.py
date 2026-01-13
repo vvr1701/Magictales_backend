@@ -36,10 +36,10 @@ class FluxGenerationService(BaseGenerationService):
 
         start_time = time.time()
 
-        # Build request payload
+        # Build request payload using camelCase naming (required by fal.ai)
         payload = {
             "prompt": prompt,
-            "image_size": {
+            "imageSize": {
                 "width": width,
                 "height": height
             },
@@ -47,9 +47,9 @@ class FluxGenerationService(BaseGenerationService):
             **kwargs
         }
 
-        # Add optional parameters
+        # Add optional parameters using camelCase
         if negative_prompt and self.config.supports_negative_prompt:
-            payload["negative_prompt"] = negative_prompt
+            payload["negativePrompt"] = negative_prompt
 
         if seed is not None and self.config.supports_seed:
             payload["seed"] = seed

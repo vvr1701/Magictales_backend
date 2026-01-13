@@ -15,29 +15,39 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 
-@router.get("/download/{order_id}", response_model=DownloadResponse)
-async def get_download(order_id: str):
+@router.get("/download/{identifier}", response_model=DownloadResponse)
+async def get_download(identifier: str):
     """
     Get download links for completed order.
 
     Returns signed URLs for PDF and individual images.
     Links are time-limited for security.
+
+    Accepts either order_id or preview_id - will look up the order accordingly.
     """
 
     try:
-        logger.info("Getting download links", order_id=order_id)
+        logger.info("Getting download links", identifier=identifier)
 
         db = get_db()
 
-        # Get order record
-        order_response = db.table("orders").select("*").eq("order_id", order_id).execute()
+        # Try to find order by order_id first, then by preview_id
+        order_response = db.table("orders").select("*").eq("order_id", identifier).execute()
+
+        if not order_response.data:
+            # Try looking up by preview_id
+            order_response = db.table("orders").select("*").eq("preview_id", identifier).execute()
+            logger.info("Looking up order by preview_id", preview_id=identifier)
 
         if not order_response.data:
             raise HTTPException(status_code=404, detail="Order not found")
 
         order = order_response.data[0]
 
-        # Check order status
+        # Check order status - accept COMPLETED and PAID (post-payment status)
+        # Note: Orders go PAID -> GENERATING_PDF -> COMPLETED
+        valid_download_statuses = [OrderStatus.COMPLETED.value, OrderStatus.PAID.value]
+        
         if order["status"] == OrderStatus.GENERATING_PDF.value:
             return DownloadResponse(
                 status="generating",
@@ -45,7 +55,7 @@ async def get_download(order_id: str):
                 message="Your book is still being created. Please check back in a few minutes."
             )
 
-        if order["status"] != OrderStatus.COMPLETED.value:
+        if order["status"] not in valid_download_statuses:
             if order["status"] == OrderStatus.FAILED.value:
                 raise HTTPException(
                     status_code=500,
@@ -78,16 +88,27 @@ async def get_download(order_id: str):
         # Generate signed URLs
         storage = StorageService()
 
-        # PDF download
-        pdf_path = f"final/{order['preview_id']}/book.pdf"
-        pdf_signed_url = storage.generate_signed_url(pdf_path, expires_in=3600)  # 1 hour
+        # PDF download - use pre-generated PDF URL if available
+        pdf_url = preview.get("pdf_url")
+        
+        if pdf_url:
+            # Use the pre-generated PDF URL directly
+            pdf_signed_url = pdf_url
+            logger.info("Using pre-generated PDF", pdf_url=pdf_url)
+        else:
+            # Fallback to generating signed URL from expected path
+            pdf_path = f"final/{order['preview_id']}/storygift_book.pdf"
+            pdf_signed_url = storage.generate_signed_url(pdf_path, expires_in=3600)  # 1 hour
+            logger.info("Using fallback PDF path", pdf_path=pdf_path)
 
-        # Get PDF file size
+        # Get PDF file size (optional, don't fail if not available)
+        pdf_size_mb = None
         try:
-            pdf_size_bytes = await storage.get_file_size(pdf_path)
-            pdf_size_mb = round(pdf_size_bytes / 1024 / 1024, 1)
+            if not pdf_url:
+                pdf_size_bytes = await storage.get_file_size(pdf_path)
+                pdf_size_mb = round(pdf_size_bytes / 1024 / 1024, 1)
         except:
-            pdf_size_mb = None
+            pass
 
         # Individual image downloads
         image_downloads = []
@@ -126,7 +147,7 @@ async def get_download(order_id: str):
         raise
 
     except Exception as e:
-        logger.error("Failed to get download links", order_id=order_id, error=str(e))
+        logger.error("Failed to get download links", identifier=identifier, error=str(e))
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve download links. Please try again."
