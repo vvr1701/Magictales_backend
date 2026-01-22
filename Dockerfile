@@ -3,15 +3,18 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies for WeasyPrint, MediaPipe, and Playwright browsers
-RUN apt-get update && apt-get install -y \
+# Note: Using Debian bookworm package names
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # WeasyPrint dependencies
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     libgdk-pixbuf2.0-0 \
     libffi-dev \
     shared-mime-info \
-    libgl1-mesa-glx \
+    # OpenCV/MediaPipe dependencies
+    libgl1 \
     libglib2.0-0 \
-    # Playwright browser dependencies
+    # Playwright/Chromium dependencies
     libnss3 \
     libnspr4 \
     libasound2 \
@@ -26,10 +29,10 @@ RUN apt-get update && apt-get install -y \
     libxfixes3 \
     libxrandr2 \
     libgbm1 \
-    libpango-1.0-0 \
     libcairo2 \
     fonts-liberation \
-    wget \
+    # Utilities
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
