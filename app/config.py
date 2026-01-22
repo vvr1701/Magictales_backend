@@ -3,7 +3,9 @@ Application settings loaded from environment variables.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator, model_validator
 from functools import lru_cache
+from typing import Self
 
 
 class Settings(BaseSettings):
@@ -35,7 +37,7 @@ class Settings(BaseSettings):
 
     # Legacy model configurations (kept for backward compatibility)
     fallback_base_model: str = "flux_schnell"
-    fallback_realistic_model: str = "flux_pulid"
+    fallback_realistic_model: str = "nano_banana"  # Fallback uses same NanoBanana model
 
     # Testing Configuration
     testing_mode_enabled: bool = True  # Toggle for development vs production
@@ -67,7 +69,7 @@ class Settings(BaseSettings):
 
     # Email (Resend)
     resend_api_key: str = ""  # Get from resend.com
-    from_email: str = "MagicTales <noreply@zelavokids.com>"
+    from_email: str = "StoryGift <noreply@storygift.in>"
 
     # StoryGift Generation Settings
     default_theme: str = "storygift_magic_castle"  # Primary StoryGift theme
@@ -81,6 +83,38 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore"
     )
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> Self:
+        """Validate that required settings are present in production mode."""
+        if self.app_env == "production":
+            errors = []
+            
+            if not self.shopify_webhook_secret:
+                errors.append(
+                    "SHOPIFY_WEBHOOK_SECRET is required in production. "
+                    "Get it from Shopify Admin > Settings > Notifications > Webhooks"
+                )
+            
+            if not self.shopify_api_secret:
+                errors.append(
+                    "SHOPIFY_API_SECRET is required in production. "
+                    "Get it from Shopify Partners > Your App > API credentials"
+                )
+            
+            if not self.shopify_shop_domain:
+                errors.append(
+                    "SHOPIFY_SHOP_DOMAIN is required in production. "
+                    "Example: your-store.myshopify.com"
+                )
+            
+            if errors:
+                raise ValueError(
+                    "Production configuration errors:\n" + 
+                    "\n".join(f"  - {e}" for e in errors)
+                )
+        
+        return self
 
 
 @lru_cache()

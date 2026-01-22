@@ -37,15 +37,14 @@ async def handle_order_paid(request: Request, background_tasks: BackgroundTasks)
     try:
         logger.info("Received Shopify order-paid webhook")
 
-        # Step 1: Verify HMAC signature
-        await verify_shopify_webhook(request, settings.shopify_webhook_secret)
+        # Step 1: Verify HMAC signature and get verified body
+        verified_body = await verify_shopify_webhook(request, settings.shopify_webhook_secret)
 
         # Step 2: Verify shop domain
         verify_shop_domain(request, settings.shopify_shop_domain)
 
-        # Get the raw body again for parsing
-        body = await request.body()
-        webhook_data = json.loads(body.decode('utf-8'))
+        # Parse the verified body (no need to read again - prevents race condition)
+        webhook_data = json.loads(verified_body.decode('utf-8'))
 
         # Extract order information
         order_id = str(webhook_data.get("id"))
@@ -67,14 +66,21 @@ async def handle_order_paid(request: Request, background_tasks: BackgroundTasks)
             return {"success": True, "message": "Order already processed"}
 
         # Step 4: Extract preview_id from line item properties
+        # Note: Frontend sends '_preview_id' (underscore prefix hides from customer)
+        # We check for both 'preview_id' and '_preview_id' for compatibility
         preview_id = None
         line_items = webhook_data.get("line_items", [])
 
         for item in line_items:
             properties = item.get("properties", [])
             for prop in properties:
-                if prop.get("name") == "preview_id":
+                prop_name = prop.get("name", "")
+                # Check for both '_preview_id' (hidden) and 'preview_id' (visible)
+                if prop_name in ("_preview_id", "preview_id"):
                     preview_id = prop.get("value")
+                    logger.info("Found preview_id in line item",
+                               property_name=prop_name,
+                               preview_id=preview_id)
                     break
             if preview_id:
                 break
@@ -84,20 +90,69 @@ async def handle_order_paid(request: Request, background_tasks: BackgroundTasks)
             # Still return 200 to acknowledge webhook
             return {"success": True, "message": "Webhook received but no preview_id found"}
 
-        # Verify preview exists and is not expired
+        # Verify preview exists
         preview_response = db.table("previews").select("*").eq("preview_id", preview_id).execute()
 
         if not preview_response.data:
             logger.error("Preview not found", preview_id=preview_id, order_id=order_id)
-            return {"success": True, "message": "Preview not found"}
+            # TODO: Trigger refund via Shopify API - customer paid for non-existent preview
+            return {"success": True, "message": "Preview not found", "action_required": "refund"}
 
         preview = preview_response.data[0]
 
         # Check if preview has expired
         expires_at = datetime.fromisoformat(preview["expires_at"].replace('Z', '+00:00'))
-        if expires_at < datetime.utcnow().replace(tzinfo=expires_at.tzinfo):
-            logger.error("Preview has expired", preview_id=preview_id, order_id=order_id)
-            return {"success": True, "message": "Preview has expired"}
+        preview_expired = expires_at < datetime.utcnow().replace(tzinfo=expires_at.tzinfo)
+
+        if preview_expired:
+            # GRACE PERIOD: If expired within last 24 hours, extend and continue
+            # This handles cases where user started checkout just before expiry
+            hours_since_expiry = (datetime.utcnow().replace(tzinfo=expires_at.tzinfo) - expires_at).total_seconds() / 3600
+
+            if hours_since_expiry <= 24:
+                # Extend preview by 7 days from now (grace period)
+                new_expires_at = (datetime.utcnow() + timedelta(days=7)).isoformat()
+                db.table("previews").update({
+                    "expires_at": new_expires_at
+                }).eq("preview_id", preview_id).execute()
+
+                logger.warning(
+                    "Extended expired preview (grace period)",
+                    preview_id=preview_id,
+                    order_id=order_id,
+                    hours_since_expiry=round(hours_since_expiry, 2),
+                    new_expires_at=new_expires_at
+                )
+            else:
+                # Expired too long ago - log for manual review/refund
+                logger.error(
+                    "Preview expired beyond grace period - requires manual refund",
+                    preview_id=preview_id,
+                    order_id=order_id,
+                    hours_since_expiry=round(hours_since_expiry, 2),
+                    customer_email=customer_email
+                )
+                # Still create order record for tracking, but mark as needing attention
+                order_data = {
+                    "order_id": order_id,
+                    "order_number": str(order_number) if order_number else None,
+                    "preview_id": preview_id,
+                    "customer_email": customer_email,
+                    "customer_name": customer_name or None,
+                    "status": OrderStatus.FAILED.value,
+                    "error_message": f"Preview expired {round(hours_since_expiry, 1)} hours ago. Manual refund required.",
+                    "retry_count": 0,
+                    "created_at": datetime.utcnow().isoformat(),
+                    "expires_at": (datetime.utcnow() + timedelta(days=30)).isoformat()
+                }
+                db.table("orders").insert(order_data).execute()
+
+                return {
+                    "success": True,
+                    "message": "Preview expired - order marked for refund",
+                    "action_required": "manual_refund",
+                    "customer_email": customer_email
+                }
 
         # Extract shipping address
         shipping_address = None
@@ -135,6 +190,15 @@ async def handle_order_paid(request: Request, background_tasks: BackgroundTasks)
             logger.error("Failed to create order record", order_id=order_id)
             raise HTTPException(status_code=500, detail="Failed to create order")
 
+        # CRITICAL: Update preview status to PURCHASED so frontend detects payment
+        # This is what the frontend polls for after checkout_success=true
+        db.table("previews").update({
+            "status": PreviewStatus.PURCHASED.value,
+            "generation_phase": "generating_full"
+        }).eq("preview_id", preview_id).execute()
+        
+        logger.info("Preview status updated to PURCHASED", preview_id=preview_id)
+
         # Step 6: Queue PDF generation (remaining pages + PDF)
         # Get child_name from preview data (stored when preview was created)
         child_name_from_preview = preview.get("child_name", "Child")
@@ -161,10 +225,29 @@ async def handle_order_paid(request: Request, background_tasks: BackgroundTasks)
         raise
 
     except Exception as e:
-        logger.error("Failed to process webhook", error=str(e))
-        # Always return 200 for webhooks to prevent retries
-        # Log the error for investigation
-        return {"success": True, "message": f"Webhook received but processing failed: {str(e)}"}
+        # Log detailed error for manual investigation/retry
+        # Extract what we can from local variables for debugging
+        error_context = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+        
+        # Try to get context from local variables if they exist
+        try:
+            error_context["order_id"] = order_id if 'order_id' in dir() else "unknown"
+            error_context["preview_id"] = preview_id if 'preview_id' in dir() else "unknown"
+            error_context["customer_email"] = customer_email if 'customer_email' in dir() else "unknown"
+        except:
+            pass
+        
+        logger.error(
+            "WEBHOOK FAILED - REQUIRES MANUAL INVESTIGATION",
+            **error_context
+        )
+        
+        # Return 500 to trigger Shopify retry for transient errors
+        # Shopify will retry up to 19 times over 48 hours
+        raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
 
 
 @router.post("/order-cancelled")
@@ -177,13 +260,12 @@ async def handle_order_cancelled(request: Request):
     settings = get_settings()
 
     try:
-        # Verify webhook
-        await verify_shopify_webhook(request, settings.shopify_webhook_secret)
+        # Verify webhook and get verified body
+        verified_body = await verify_shopify_webhook(request, settings.shopify_webhook_secret)
         verify_shop_domain(request, settings.shopify_shop_domain)
 
-        # Get webhook data
-        body = await request.body()
-        webhook_data = json.loads(body.decode('utf-8'))
+        # Parse verified body
+        webhook_data = json.loads(verified_body.decode('utf-8'))
 
         order_id = str(webhook_data.get("id"))
         logger.info("Order cancelled", order_id=order_id)

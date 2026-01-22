@@ -146,7 +146,8 @@ class StorageService:
     def generate_signed_url(
         self,
         path: str,
-        expires_in: int = 3600
+        expires_in: int = 3600,
+        content_disposition: Optional[str] = None
     ) -> str:
         """
         Generate time-limited signed URL for downloading files.
@@ -154,6 +155,7 @@ class StorageService:
         Args:
             path: Path in bucket
             expires_in: Expiration time in seconds (default: 1 hour)
+            content_disposition: Content-Disposition header (e.g., 'attachment; filename="foo.pdf"')
 
         Returns:
             Signed URL
@@ -161,12 +163,17 @@ class StorageService:
         try:
             logger.info("Generating signed URL", path=path, expires_in=expires_in)
 
+            params = {
+                'Bucket': self.settings.r2_bucket_name,
+                'Key': path
+            }
+
+            if content_disposition:
+                params['ResponseContentDisposition'] = content_disposition
+
             url = self.s3_client.generate_presigned_url(
                 'get_object',
-                Params={
-                    'Bucket': self.settings.r2_bucket_name,
-                    'Key': path
-                },
+                Params=params,
                 ExpiresIn=expires_in
             )
 

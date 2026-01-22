@@ -23,6 +23,7 @@ from app.services.email_service import get_email_service
 from app.stories.themes import get_theme
 from app.ai.factory import get_pipeline_for_style
 from app.core.exceptions import ImageGenerationError, StorageError
+from app.core.sanitization import sanitize_child_name, sanitize_for_prompt
 
 # Import helper functions from utils (not tasks) to avoid circular import
 from app.background.utils import (
@@ -57,10 +58,14 @@ async def generate_storygift_preview(
         preview_pages = 5
         total_pages = 10  # Total pages in full book
 
+        # Sanitize child name to prevent prompt injection
+        safe_child_name = sanitize_child_name(child_name)
+
         logger.info(
             "Starting StoryGift preview generation (5-page preview mode)",
             preview_id=preview_id,
-            child_name=child_name,
+            child_name=safe_child_name,
+            original_name_length=len(child_name),
             theme=theme,
             style=style,
             preview_pages=preview_pages,
@@ -117,11 +122,13 @@ async def generate_storygift_preview(
 
         cover_url = None
         try:
-            # Get cover prompt from template
-            cover_prompt = template.get_cover_prompt(child_name)
+            # Get cover prompt from template (using sanitized name and matching style)
+            # This ensures cover and pages use consistent artistic styling
+            cover_prompt = template.get_cover_prompt(safe_child_name, style=style)
             logger.info(
                 "Generating cover image with face-preserving pipeline",
                 preview_id=preview_id,
+                style=style,
                 prompt_length=len(cover_prompt),
                 prompt_preview=cover_prompt[:200]  # First 200 chars for debugging
             )
@@ -130,7 +137,7 @@ async def generate_storygift_preview(
             cover_result = await pipeline.generate_with_face_analysis(
                 prompt=cover_prompt,
                 face_url=photo_url,
-                child_name=child_name,
+                child_name=safe_child_name,
                 analyzed_features=analyzed_features
             )
 
@@ -214,7 +221,7 @@ async def generate_storygift_preview(
                 result = await pipeline.generate_with_face_analysis(
                     prompt=prompt,
                     face_url=photo_url,
-                    child_name=child_name,
+                    child_name=safe_child_name,
                     analyzed_features=analyzed_features
                 )
 
@@ -229,7 +236,8 @@ async def generate_storygift_preview(
                     hires_images.append({"page": page_num, "url": stored_url})
 
                     # Prepare page data (use both 'text' and 'story_text' for compatibility)
-                    story_text_value = page_template.story_text.replace('{name}', child_name)
+                    # Use sanitize_for_prompt to safely insert name into story text
+                    story_text_value = sanitize_for_prompt(page_template.story_text, safe_child_name)
                     story_pages.append({
                         'page': page_num,
                         'image_url': stored_url,
@@ -399,23 +407,27 @@ async def generate_remaining_pages_and_pdf(
     
     while retry_count < max_retries:
         try:
+            # Sanitize child name to prevent prompt injection
+            safe_child_name = sanitize_child_name(child_name)
+
             logger.info(
                 "Starting remaining page generation",
                 order_id=order_id,
                 preview_id=preview_id,
+                child_name=safe_child_name,
                 attempt=retry_count + 1,
                 max_retries=max_retries
             )
-            
+
             # Get preview data from database
             db = get_db()
             preview_result = db.table("previews").select("*").eq("preview_id", preview_id).execute()
-            
+
             if not preview_result.data:
                 raise StorageError(f"Preview not found: {preview_id}")
-            
+
             preview_data = preview_result.data[0]
-            
+
             # Get existing data from preview phase
             existing_hires = preview_data.get("hires_images", [])
             existing_story_pages = preview_data.get("story_pages", [])
@@ -477,20 +489,21 @@ async def generate_remaining_pages_and_pdf(
                         result = await pipeline.generate_with_face_analysis(
                             prompt=prompt,
                             face_url=photo_url,
-                            child_name=child_name,
+                            child_name=safe_child_name,
                             analyzed_features=analyzed_features
                         )
-                        
+
                         if result.success and result.image_url:
                             # Store in cloud
                             storage_path = f"final/{preview_id}/page_{page_num:02d}.jpg"
                             stored_url = await StorageService().download_and_upload(
                                 result.image_url, storage_path
                             )
-                            
+
                             hires_images.append({"page": page_num, "url": stored_url})
-                            
-                            story_text_value = page_template.story_text.replace('{name}', child_name)
+
+                            # Use sanitize_for_prompt to safely insert name
+                            story_text_value = sanitize_for_prompt(page_template.story_text, safe_child_name)
                             story_pages.append({
                                 'page': page_num,
                                 'image_url': stored_url,
@@ -529,10 +542,10 @@ async def generate_remaining_pages_and_pdf(
             all_story_pages = preview_data.get("story_pages", [])
             
             pdf_generator = StoryGiftPDFGeneratorService()
-            
-            # Get story title from theme
+
+            # Get story title from theme (using sanitized name)
             template = get_theme(theme)
-            story_title = template.get_title(child_name) if hasattr(template, 'get_title') else f"{child_name}'s Adventure"
+            story_title = template.get_title(safe_child_name) if hasattr(template, 'get_title') else f"{safe_child_name}'s Adventure"
             
             # Use dedicated cover_url if available, otherwise fallback to first page
             cover_url = preview_data.get("cover_url")
@@ -542,7 +555,7 @@ async def generate_remaining_pages_and_pdf(
             
             pdf_url = await pdf_generator.generate_storygift_pdf(
                 preview_id=preview_id,
-                child_name=child_name,
+                child_name=safe_child_name,
                 story_pages=all_story_pages,
                 story_title=story_title,
                 cover_image_url=cover_url
@@ -586,7 +599,7 @@ async def generate_remaining_pages_and_pdf(
                     email_service = get_email_service()
                     await email_service.send_book_ready_email(
                         to_email=customer_email,
-                        child_name=child_name,
+                        child_name=safe_child_name,
                         story_title=story_title,
                         download_url=download_url,
                         preview_url=preview_url

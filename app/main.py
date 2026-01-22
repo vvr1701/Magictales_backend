@@ -12,10 +12,14 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.config import get_settings
 from app.api.router import api_router, health_router, webhook_router
 from app.routers import proxy
 from app.core.exceptions import ZelavoBaseException
+from app.core.rate_limiter import limiter
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = Path(__file__).parent.parent / "logs"
@@ -66,6 +70,10 @@ app = FastAPI(
     docs_url="/docs" if get_settings().app_debug else None,
     redoc_url="/redoc" if get_settings().app_debug else None,
 )
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS Configuration - Allow Shopify domains
 app.add_middleware(

@@ -15,7 +15,7 @@ from app.ai.base import (
 # Import implementations
 from app.ai.implementations.flux import FluxGenerationService
 from app.ai.implementations.face_swap import FalFaceSwapService
-from app.ai.implementations.pulid import FluxPulidService
+# PuLID removed - using NanoBanana and Cartoon3D pipelines only
 from app.ai.implementations.ip_adapter_face_id import IpAdapterFaceIdService
 from app.ai.pipelines.nanoBanana_pipeline import NanoBananaPipeline
 
@@ -36,8 +36,7 @@ class ModelFactory:
         "fal_face_swap": FalFaceSwapService,
 
         # Face embedding (photorealistic pipeline only)
-        "flux_pulid": FluxPulidService,
-        "instant_id": FluxPulidService,  # Uses same implementation
+        # PuLID removed - using NanoBanana and Cartoon3D pipelines only
         "ip_adapter_face_id": IpAdapterFaceIdService,
 
         # StoryGift-style pipeline (NanoBanana with VLM analysis)

@@ -24,6 +24,7 @@ from app.models.database import get_db
 from app.models.enums import PreviewStatus, JobStatus, JobType, BookStyle
 from app.background.tasks import generate_full_preview
 from app.config import get_settings
+from app.core.rate_limiter import limiter
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -53,19 +54,21 @@ def extract_shopify_customer_context(request: Request) -> tuple[Optional[str], O
 
 
 @router.post("/preview", response_model=JobStartResponse)
+@limiter.limit("5/minute")
 async def create_preview(
+    request: Request,
     preview_request: PreviewCreateRequest,
-    background_tasks: BackgroundTasks,
-    request: Request
+    background_tasks: BackgroundTasks
 ):
     """
     Create a new preview generation job.
 
     This endpoint:
     1. Extracts Shopify customer context from headers (if present)
-    2. Creates preview and job records in database
-    3. Starts background task to generate ALL 10 pages + 5 watermarked previews
-    4. Returns job_id for status polling
+    2. Checks guest limit (max 3 stories for non-logged-in users)
+    3. Creates preview and job records in database
+    4. Starts background task to generate ALL 10 pages + 5 watermarked previews
+    5. Returns job_id for status polling
 
     The background task generates all images upfront.
 
@@ -78,6 +81,68 @@ async def create_preview(
     try:
         # Extract Shopify customer context from headers
         shopify_customer_id, shopify_customer_email = extract_shopify_customer_context(request)
+
+        # Extract session_id for guest users
+        session_id = preview_request.session_id
+        if session_id in (None, "", "null", "undefined"):
+            session_id = request.headers.get("X-Session-Id")
+
+        # Idempotency check: Prevent duplicate preview creation within 30 seconds
+        # This prevents double-clicks from creating multiple previews
+        db_check = get_db()
+        cutoff_time = (datetime.utcnow() - timedelta(seconds=30)).isoformat()
+
+        # Check for recent preview with same photo and session
+        duplicate_check = db_check.table("previews").select(
+            "preview_id"
+        ).eq("photo_url", preview_request.photo_url).eq(
+            "session_id", session_id
+        ).gte("created_at", cutoff_time).execute()
+
+        if duplicate_check.data and len(duplicate_check.data) > 0:
+            existing_preview_id = duplicate_check.data[0]["preview_id"]
+
+            # Find the associated job
+            job_check = db_check.table("generation_jobs").select(
+                "job_id", "status"
+            ).eq("reference_id", existing_preview_id).order(
+                "queued_at", desc=True
+            ).limit(1).execute()
+
+            if job_check.data:
+                existing_job = job_check.data[0]
+                logger.info(
+                    "Returning existing preview (idempotency check)",
+                    preview_id=existing_preview_id,
+                    job_id=existing_job["job_id"]
+                )
+                return JobStartResponse(
+                    job_id=existing_job["job_id"],
+                    preview_id=existing_preview_id,
+                    status=JobStatus(existing_job["status"]),
+                    estimated_time_seconds=180,
+                    message="Your storybook is already being generated..."
+                )
+
+        # Guest limit check (max 3 stories for non-logged-in users)
+        if not shopify_customer_id and session_id:
+            db_check = get_db()
+            now = datetime.utcnow().isoformat()
+            count_result = db_check.table("previews").select(
+                "preview_id", count="exact"
+            ).eq("session_id", session_id).gt("expires_at", now).execute()
+            
+            current_count = count_result.count if count_result.count else 0
+            if current_count >= 3:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "code": "GUEST_LIMIT_REACHED",
+                        "message": "You've created 3 stories! Sign in to create more.",
+                        "limit": 3,
+                        "current": current_count
+                    }
+                )
 
         logger.info(
             "Creating preview",
@@ -99,7 +164,7 @@ async def create_preview(
         # Create preview record with Shopify customer info
         preview_data = {
             "preview_id": preview_id,
-            "session_id": preview_request.session_id,
+            "session_id": session_id,  # Use extracted session_id (from body or header)
             "customer_id": shopify_customer_id,  # Shopify customer ID from header
             "customer_email": customer_email,
             "child_name": preview_request.child_name,
@@ -172,7 +237,9 @@ async def create_preview(
 
 
 @router.post("/preview/{job_id}/retry", response_model=JobStartResponse)
+@limiter.limit("3/minute")
 async def retry_preview_generation(
+    request: Request,
     job_id: str,
     background_tasks: BackgroundTasks
 ):
@@ -431,9 +498,9 @@ async def get_preview(preview_id: str):
             days_remaining=days_remaining,
             pdf_url=preview.get("pdf_url"),  # PDF URL (only after payment + generation)
             purchase={
-                "price": 2999,  # $29.99 in cents
-                "currency": "USD",
-                "price_formatted": "$29.99",
+                "price": 599,  # ₹599 INR
+                "currency": "INR",
+                "price_formatted": "₹599",
                 "checkout_url": checkout_url
             }
         )

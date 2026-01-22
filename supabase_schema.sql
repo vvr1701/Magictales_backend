@@ -76,7 +76,12 @@ CREATE TABLE previews (
     child_gender VARCHAR(10) NOT NULL CHECK (child_gender IN ('male', 'female')),
 
     -- Story configuration
-    theme VARCHAR(50) NOT NULL CHECK (theme IN ('magic_castle', 'space_adventure', 'underwater', 'forest_friends')),
+    theme VARCHAR(50) NOT NULL CHECK (theme IN (
+        'storygift_magic_castle', 'storygift_enchanted_forest', 'storygift_spy_mission',
+        'storygift_cosmic_dreamer', 'storygift_mighty_guardian', 'storygift_ocean_explorer',
+        'storygift_birthday_magic',
+        'magic_castle', 'space_adventure', 'underwater', 'forest_friends'
+    )),
     style book_style NOT NULL DEFAULT 'artistic',
 
     -- Photo information

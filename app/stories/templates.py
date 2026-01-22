@@ -11,7 +11,7 @@ class PageTemplate:
     """Template for a single story page."""
     page_number: int
     scene_description: str
-    realistic_prompt: str     # For Flux PuLID (photorealistic only)
+    realistic_prompt: str     # For NanoBanana pipeline (photorealistic)
     story_text: str           # Text with {name} placeholder
     artistic_prompt: Optional[str] = None  # For comic book style with Flux Dev + Face Swap
     costume: Optional[str] = None
@@ -21,57 +21,101 @@ class PageTemplate:
 
 
 # Base cover prompt template with zone-based composition for typography
+# Optimized for consistent photorealistic face rendering
 COVER_PROMPT_TEMPLATE = """
-Create a children's fantasy book cover illustration with intentional negative space for typography.
-This image must contain NO text of any kind.
+A high-quality DSLR photograph of a real child in a fantasy setting. 
+Professional portrait photography with natural lighting. RAW photo quality.
 
-COMPOSITION & LAYOUT (STRICT):
+COMPOSITION (STRICT):
 
-TOP HEADER ZONE (Upper 25% of image):
-- Empty atmospheric background only
+TOP ZONE (Upper 20%):
 - {header_atmosphere}
-- No characters, no faces, no animals, no objects
-- Clean, calm negative space suitable for placing a title later
+- Empty space for typography - no characters or objects here
 
-MAIN HERO ZONE (Middle 60% of image):
-- A brave young child named {name} stands as the clear hero
-- Position the child in the CENTER-LOWER portion of the frame
-- The child's head and face must be fully BELOW the top header zone
-- CRITICAL: The child's face must be PHOTOREALISTIC with natural skin texture, realistic eyes, and natural facial features - like a real photograph of a child
-- Face fully visible, centered, unobstructed, expressive and confident
-- Natural lighting on the face, no fantasy glow effects on the skin
-- No glowing effects, vines, particles, or objects crossing the face
+MAIN SUBJECT (Center 65%):
+- A real human child named {name} stands confidently in the center
+- Position the child's face in the center of the frame, fully visible
+- CRITICAL FACE REQUIREMENTS:
+  * Real human child photographed with a DSLR camera
+  * Natural skin with pores and texture visible
+  * Realistic eyes with natural light reflections
+  * No CGI, no 3D rendering, no illustration style
+  * No fantasy glow on skin or face
+  * Sharp focus on face, like a portrait photograph
 - Child wearing {costume}
 - {magical_elements}
 
-FOOTER ZONE (Bottom 15% of image):
+FOOTER ZONE (Bottom 15%):
 - {footer_description}
-- Calm and uncluttered
-- Suitable space for adding a small name or subtitle later
+- Clean space suitable for text overlay
 
-STYLE & MOOD:
-- Photorealistic child portrait in a fantasy setting
-- The child's face and skin MUST look like a real photograph - natural skin, real eye details, natural hair texture
-- Fantasy background elements can be stylized, but the child must look photographically real
-- Warm cinematic lighting, golden magical tones
-- Soft depth of field, subtle vignette at edges
-- Whimsical, safe, and emotionally warm for children
-
-CAMERA & FRAMING:
-- Square 1:1 aspect ratio
-- Medium to full-body framing
-- Eye-level or slightly low-angle (heroic but gentle)
-- Balanced composition with strong subject separation
+PHOTOGRAPHY STYLE:
+- Shot on Canon EOS R5 with 85mm portrait lens
+- Natural golden hour lighting
+- Shallow depth of field (f/2.8)
+- The child looks REAL and PHOTOGRAPHED, not illustrated
+- Fantasy elements in background only, child remains photographic
 
 ABSOLUTE RULES:
-- NO text, letters, words, symbols, logos, or watermarks
-- NO text-like shapes or glowing runes
-- NO cropping of head or face
-- Face must remain clean and clear
-- Child's face must be photorealistic, not illustrated or stylized
+- NO text, letters, or watermarks
+- Face must be photorealistic - like an actual photograph
+- NO cartoon, anime, or illustrated style on the child
+- Child's skin must have natural human texture
 
-Print-quality, cover-ready illustration with photorealistic child.
+Professional portrait photograph of a child in fantasy scenery.
 """
+
+# =============================================================================
+# CINEMATIC PAINTING COVER TEMPLATE
+# For cartoon3d/animated style - matches the interior page styling
+# Inspired by: Pixar concept art posters, Spider-Verse, DreamWorks key art
+# =============================================================================
+CINEMATIC_COVER_PROMPT_TEMPLATE = """
+A premium cinematic digital painting for a children's book cover.
+High-end illustrated character portrait with hyper-detailed face rendering.
+
+COMPOSITION (STRICT):
+
+TOP ZONE (Upper 20%):
+- {header_atmosphere}
+- Empty space for typography - no characters or objects here
+- Painted atmospheric effects (clouds, magic, light rays)
+
+MAIN SUBJECT (Center 65%):
+- A child hero named {name} in a dynamic, confident pose
+- Position the child's face prominently in the center, fully visible
+- CRITICAL FACE REQUIREMENTS:
+  * Hyper-realistic skin texture with visible pores and natural imperfections
+  * Subsurface scattering for warm, lifelike skin tones
+  * Ultra-detailed eyes with iris depth, reflections, and life
+  * NOT flat CG, NOT plastic doll, NOT airbrushed smooth
+  * Natural child proportions (no chibi/anime distortion)
+  * Rosy cheeks, natural skin color variations
+- Child wearing {costume}
+- {magical_elements}
+
+FOOTER ZONE (Bottom 15%):
+- {footer_description}
+- Clean space suitable for text overlay
+
+ARTISTIC STYLE:
+- Premium cinematic digital painting (Pixar concept art quality)
+- Dramatic rim lighting and key light separation
+- Rich color grading with vibrant, saturated colors
+- Volumetric light rays, atmospheric depth
+- Painterly brush strokes in background and costume details
+- Golden hour warmth or dramatic sunset gradients
+- Bokeh and depth of field in environment
+
+ABSOLUTE RULES:
+- NO text, letters, or watermarks
+- Face must have realistic skin texture - parents must recognize their child
+- NO cheap CG look, NO mobile game art, NO generic 3D render
+- Must look like a $500 commissioned artwork
+
+Premium children's book cover illustration with cinematic lighting.
+"""
+
 
 
 @dataclass
@@ -94,9 +138,25 @@ class StoryTemplate:
         """Get formatted title for this story."""
         return self.title_template.format(name=child_name)
     
-    def get_cover_prompt(self, child_name: str) -> str:
-        """Get formatted cover page prompt with zone-based composition."""
-        return COVER_PROMPT_TEMPLATE.format(
+    def get_cover_prompt(self, child_name: str, style: str = "photorealistic") -> str:
+        """
+        Get formatted cover page prompt with zone-based composition.
+        
+        Args:
+            child_name: Child's name for personalization
+            style: Art style - 'photorealistic' (default) or 'cartoon3d'/'animated'
+                   Uses different prompt templates for visual consistency
+        
+        Returns:
+            Formatted cover prompt matching the selected art style
+        """
+        # Choose template based on style
+        if style in ("cartoon3d", "animated", "cinematic_painting"):
+            template = CINEMATIC_COVER_PROMPT_TEMPLATE
+        else:
+            template = COVER_PROMPT_TEMPLATE
+        
+        return template.format(
             name=child_name,
             header_atmosphere=self.cover_header_atmosphere or "Dark or softly glowing magical sky, forest canopy, or mist",
             costume=self.cover_costume or self.default_costume,
@@ -289,7 +349,7 @@ child-proportioned face with age-appropriate features, consistent expression sty
 preserve subtle facial characteristics across all pose and lighting variations.
 """
 
-# Storybook-optimized style block for PuLID generation
+# Storybook-optimized style block for NanoBanana generation
 STORYBOOK_ILLUSTRATION_STYLE = """
 Whimsical storybook illustration, watercolor art style with soft edges,
 golden hour warm lighting, rich vibrant colors, ultra-fine brushwork details,

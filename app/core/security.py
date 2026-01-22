@@ -11,11 +11,18 @@ import structlog
 logger = structlog.get_logger()
 
 
-async def verify_shopify_webhook(request: Request, secret: str) -> bool:
+async def verify_shopify_webhook(request: Request, secret: str) -> bytes:
     """
-    Verify Shopify webhook HMAC signature.
+    Verify Shopify webhook HMAC signature and return verified body.
 
-    CRITICAL: Must read raw body before any parsing.
+    CRITICAL: Returns the verified body bytes for safe parsing.
+    This prevents race conditions from reading the body twice.
+    
+    Returns:
+        bytes: The verified webhook body for parsing
+        
+    Raises:
+        HTTPException: If HMAC verification fails
     """
     try:
         # Get signature from header
@@ -24,7 +31,7 @@ async def verify_shopify_webhook(request: Request, secret: str) -> bool:
             logger.warning("Missing HMAC signature in webhook")
             raise HTTPException(status_code=401, detail="Missing HMAC signature")
 
-        # Get raw body
+        # Get raw body - read once and return for parsing
         body = await request.body()
 
         # Compute expected signature
@@ -36,13 +43,13 @@ async def verify_shopify_webhook(request: Request, secret: str) -> bool:
             ).digest()
         ).decode("utf-8")
 
-        # Compare signatures
+        # Compare signatures using timing-safe comparison
         if not hmac.compare_digest(computed_hmac, shopify_hmac):
             logger.warning("Invalid HMAC signature in webhook")
             raise HTTPException(status_code=401, detail="Invalid HMAC signature")
 
         logger.info("Webhook HMAC signature verified")
-        return True
+        return body  # Return verified body for safe parsing
 
     except HTTPException:
         raise
@@ -52,9 +59,23 @@ async def verify_shopify_webhook(request: Request, secret: str) -> bool:
 
 
 def verify_shop_domain(request: Request, expected_domain: str) -> bool:
-    """Verify webhook came from expected shop."""
+    """Verify webhook came from expected shop.
+    
+    In development, this only logs a warning but allows the request.
+    In production, this raises an exception on mismatch.
+    """
+    from app.config import get_settings
+    settings = get_settings()
+    
     shop_domain = request.headers.get("X-Shopify-Shop-Domain")
     if shop_domain != expected_domain:
-        logger.warning("Invalid shop domain", received=shop_domain, expected=expected_domain)
+        logger.warning("Shop domain mismatch", received=shop_domain, expected=expected_domain)
+        
+        # In development, allow the request (for test webhooks)
+        if settings.app_env == "development":
+            logger.info("Allowing mismatched domain in development mode")
+            return True
+        
+        # In production, reject the request
         raise HTTPException(status_code=401, detail="Invalid shop domain")
     return True

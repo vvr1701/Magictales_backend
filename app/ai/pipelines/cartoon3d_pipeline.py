@@ -1,11 +1,18 @@
 """
-Cartoon3D Pipeline - Disney/Pixar 3D Animation style generation.
+Cartoon3D Pipeline - Cinematic Stylized Painting Style.
 
-Uses the same NanoBanana model but with different prompts optimized for
-3D animated cartoon style (Disney/Pixar aesthetic).
+Uses the same NanoBanana model but with prompts optimized for
+a CINEMATIC PAINTING style that PRESERVES the child's actual facial identity
+while adding artistic stylization.
 
 Architecture note: This is a separate pipeline so we can easily swap to a
 different model in the future if needed.
+
+Style Philosophy: 
+- "Parents should instantly recognize their child"
+- Hyper-detailed skin textures + stylized artistic lighting
+- Inspired by: Pixar concept art, Spider-Verse, Arcane, DreamWorks, high-end book covers
+- Goal: Look like a $500 commissioned digital painting, not a plastic 3D render
 """
 
 import time
@@ -20,36 +27,104 @@ from app.config import get_settings
 logger = structlog.get_logger()
 
 
-# Style block for 3D cartoon (Disney/Pixar) prompts
-CARTOON_3D_STYLE_BLOCK = """
-Disney Pixar 3D animation style, Dreamworks quality CGI, adorable cartoon character,
-big expressive eyes, smooth stylized features, vibrant saturated colors,
-soft ambient occlusion, subsurface scattering on skin, 3D rendered quality,
-Toy Story aesthetic, How to Train Your Dragon quality, cute and charming expression,
-professional 3D animation studio quality, Zootopia-level character design,
-warm inviting lighting, magical whimsical atmosphere, 8K render, CGI masterpiece.
+# =============================================================================
+# ENHANCED VLM FACE ANALYSIS PROMPT
+# Captures precise facial geometry for identity preservation
+# =============================================================================
+FACE_ANALYSIS_PROMPT = """Analyze this child's face with PRECISE DETAIL for identity preservation:
+
+FACIAL STRUCTURE:
+- Face shape (oval, round, square, heart, etc.)
+- Forehead height and width
+- Cheekbone position and prominence
+- Jawline shape and chin
+
+DISTINCTIVE FEATURES:
+- Eye shape (almond, round, hooded, etc.), spacing, and exact color
+- Nose shape (button, straight, upturned tip, bridge width)
+- Lip shape (full, thin, cupid's bow prominence)
+- Eyebrow shape and thickness
+
+HAIR:
+- Color (be specific: honey brown, jet black, strawberry blonde, etc.)
+- Texture (curly, wavy, straight, coiled)
+- Style and length
+
+AGE MARKERS:
+- Approximate age (toddler 2-4, child 5-8, etc.)
+- Baby fat presence on cheeks
+- Tooth visibility if smiling
+
+Output a DETAILED description focusing on what makes THIS child unique and recognizable.
+Example: 'A 4-year-old girl with an oval face, round cheeks with soft baby fat, wide-set almond-shaped eyes with dark brown irises, a small button nose with slightly upturned tip, full rosy lips, thick curved eyebrows, and curly dark brown hair reaching her shoulders.'"""
+
+
+# =============================================================================
+# CINEMATIC PAINTING STYLE
+# Hyper-realistic digital painting with cinematic stylization
+# Reference: Pixar concept art, Spider-Verse, Arcane, high-end book illustration
+# Goal: Premium commissioned artwork feel - realistic yet unmistakably artistic
+# =============================================================================
+CINEMATIC_PAINTING_STYLE = """
+Art Style: Premium cinematic digital painting, hyper-detailed character portrait.
+
+SKIN & FACE RENDERING (CRITICAL - PRIORITY 1):
+- Skin must have VISIBLE TEXTURE: pores, peach fuzz, natural imperfections
+- Subsurface Scattering (SSS) for warm, translucent, lifelike skin tones
+- NO plastic, waxy, or CG-doll appearance - must look touchable and real
+- Eyes: Ultra-detailed iris with depth, reflections, and life - the "window to the soul"
+- Natural skin color variations: rosy cheeks, slight shadows under eyes
+
+LIGHTING & ATMOSPHERE:
+- Dramatic cinematic lighting with rim lights and key light separation
+- Rich color grading inspired by Pixar, DreamWorks concept art
+- Volumetric light rays, atmospheric depth, bokeh in background
+- Golden hour warmth or dramatic sunset gradients
+
+ARTISTIC STYLIZATION:
+- Painterly brush strokes visible in background and clothing
+- Character silhouettes enhanced with subtle stylization
+- Environment rendered with impressionistic detail - not photorealistic
+- Color palette: Vibrant, saturated, emotionally evocative
+
+IDENTITY PRESERVATION (NON-NEGOTIABLE):
+- Maintain EXACT facial geometry from reference (nose shape, eye spacing, face shape)
+- Child's unique features must be immediately recognizable
+- Natural child proportions - no anime/chibi distortion
+- Expression: Dynamic, full of life and personality
 """
 
-# Negative prompt for cartoon style - avoid photorealistic elements
-CARTOON_3D_NEGATIVE_PROMPT = """
-photorealistic, photograph, real person, realistic skin texture, pores,
-blurry, low quality, distorted, deformed, ugly, bad anatomy, extra limbs,
-extra fingers, mutated hands, poorly drawn face, mutation, watermark,
-signature, cropped, out of frame, duplicate, multiple heads,
-dark horror scary, gore violence, adult mature content,
-2D flat cartoon, anime style, sketch, line art, pencil drawing
+
+# =============================================================================
+# NEGATIVE PROMPT - Blocks cheap CG looks, ensures premium painting quality
+# =============================================================================
+CINEMATIC_NEGATIVE_PROMPT = """
+plastic skin, waxy finish, CG doll, vinyl toy look, airbrushed, over-smoothed,
+flat lifeless texture, soft focus everywhere, low resolution, jpeg artifacts,
+bad anatomy, distorted proportions, extra limbs, mutated hands,
+watermark, signature, text, logo,
+oversized anime eyes, chibi proportions, 2D vector art, simple clipart,
+generic 3D render, unity engine, unreal engine default lighting,
+harsh unflattering shadows, overexposed, burnout, HDR artifacts,
+scary, creepy, uncanny valley, horror, adult features on child,
+generic stock photo, amateur photography, passport photo,
+face completely different from reference, unrecognizable child,
+adult face on child body, wrong age features, aging, wrinkles,
+cheap mobile game art, low-budget animation, flash animation
 """
 
 
 class Cartoon3DPipeline:
     """
-    Cartoon3D pipeline for Disney/Pixar style generation.
+    Cartoon3D pipeline for Premium Animated Portrait Painting style.
 
     Flow:
-    1. Analyze child's face using LLaVA-Next VLM (same as NanoBanana)
-    2. Generate each page with NanoBanana using cartoon-optimized prompts
+    1. Analyze child's face using LLaVA-Next VLM with ENHANCED geometry analysis
+    2. Generate each page with NanoBanana using identity-preserving prompts
     3. Sequential generation to avoid API limits
     4. Store results in cloud storage
+    
+    Style: Premium digital painting that preserves the child's actual facial identity.
     """
 
     def __init__(self, model_override: Optional[str] = None):
@@ -64,7 +139,7 @@ class Cartoon3DPipeline:
 
         # Uses same NanoBanana model - can be swapped later if needed
         self.model_id = "fal-ai/nano-banana/edit"
-        self.model_name = "cartoon_3d"
+        self.model_name = "animated_portrait"  # Updated style name
 
         logger.info(
             "Cartoon3D pipeline initialized",
@@ -74,22 +149,22 @@ class Cartoon3DPipeline:
 
     async def analyze_face(self, face_image_url: str) -> str:
         """
-        Analyze child's face using LLaVA-Next VLM.
+        Analyze child's face using LLaVA-Next VLM with ENHANCED geometry analysis.
 
-        This replicates StoryGift's analyzeImage function.
-        Extracts detailed facial features for consistent generation.
+        Uses detailed facial structure analysis to capture unique identifying
+        features that make the child recognizable.
 
         Args:
             face_image_url: URL of child's reference photo
 
         Returns:
-            Detailed facial description string
+            Detailed facial description string with precise geometry
         """
         try:
-            logger.info("Starting VLM face analysis for cartoon", image_url=face_image_url)
+            logger.info("Starting ENHANCED VLM face analysis for animated portrait", image_url=face_image_url)
             start_time = time.time()
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=45.0) as client:  # Increased timeout for detailed analysis
                 response = await client.post(
                     "https://fal.run/fal-ai/llava-next",
                     headers={
@@ -98,9 +173,9 @@ class Cartoon3DPipeline:
                     },
                     json={
                         "image_url": face_image_url,
-                        # Adjusted prompt for cartoon style - focus on key identifying features
-                        "prompt": "Describe the child's key features for a cartoon character: hair color, hair style, eye color, and any distinctive features. Be concise but accurate. Example: 'curly brown hair, big hazel eyes, round cheerful face'.",
-                        "max_tokens": 100
+                        # ENHANCED: Detailed facial geometry prompt for identity preservation
+                        "prompt": FACE_ANALYSIS_PROMPT,
+                        "max_tokens": 250  # Increased for detailed description
                     }
                 )
 
@@ -110,23 +185,24 @@ class Cartoon3DPipeline:
 
                 latency = int((time.time() - start_time) * 1000)
                 logger.info(
-                    "VLM face analysis for cartoon completed",
+                    "Enhanced VLM face analysis completed",
                     latency_ms=latency,
-                    analysis_length=len(analysis_result)
+                    analysis_length=len(analysis_result),
+                    analysis_preview=analysis_result[:150] if analysis_result else "empty"
                 )
 
-                return analysis_result or "a cute child with expressive features"
+                return analysis_result or "a young child with natural, expressive features"
             else:
                 logger.error(
                     "VLM analysis failed",
                     status_code=response.status_code,
                     response_text=response.text
                 )
-                return "a cute child with expressive features"
+                return "a young child with natural, expressive features"
 
         except Exception as e:
             logger.error("VLM analysis error", error=str(e))
-            return "a cute child with expressive features"
+            return "a young child with natural, expressive features"
 
     async def generate_with_face_analysis(
         self,
@@ -167,13 +243,13 @@ class Cartoon3DPipeline:
                 child_name=child_name
             )
 
-            # NanoBanana API call with cartoon configuration
+            # NanoBanana API call with animated portrait configuration
             async with httpx.AsyncClient(timeout=60.0) as client:
                 payload = {
                     "prompt": enhanced_prompt,
                     "image_urls": [face_url],
                     "aspect_ratio": "5:4",
-                    "negative_prompt": CARTOON_3D_NEGATIVE_PROMPT.strip(),
+                    "negative_prompt": CINEMATIC_NEGATIVE_PROMPT.strip(),
                 }
 
                 if seed:
@@ -213,7 +289,7 @@ class Cartoon3DPipeline:
                             "analyzed_features": analyzed_features,
                             "seed": seed,
                             "aspect_ratio": "5:4",
-                            "style": "cartoon_3d"
+                            "style": "animated_portrait"
                         }
                     )
                 else:
@@ -356,26 +432,33 @@ class Cartoon3DPipeline:
         analyzed_features: str
     ) -> str:
         """
-        Build enhanced prompt with cartoon styling (Disney/Pixar).
-
-        This uses the same layered approach as NanoBanana but with
-        cartoon-specific style modifiers.
+        Builds prompt with cinematic painting style instructions.
+        
+        This creates a unified visual language for both cover and story pages,
+        ensuring consistency across the entire book.
         """
         # Replace {name} tokens with actual child name
         personalized_prompt = base_prompt.replace("{name}", child_name)
 
-        # Build layered prompt with cartoon styling
-        enhanced_prompt = f"""Subject: A cute 3D animated cartoon child character inspired by {child_name}.
-Appearance: Cartoon version with {analyzed_features}, stylized in Disney Pixar 3D animation style.
+        # Build enhanced prompt with cinematic painting style
+        # The styling instructions wrap the scene to ensure consistent output
+        enhanced_prompt = f"""[ARTISTIC DIRECTION: Premium Digital Painting]
 
-Scene Action: {personalized_prompt}.
+SCENE: {personalized_prompt}
 
-{CARTOON_3D_STYLE_BLOCK.strip()}
+CHILD CHARACTER: {child_name}
+FACIAL REFERENCE: {analyzed_features}
 
-Character Design: Big expressive eyes, rounded adorable features, smooth stylized skin,
-charming animated expressions, consistent character design throughout.
+[SKIN & FACE RENDERING - CRITICAL]
+- Render {child_name}'s face with HYPER-REALISTIC skin texture
+- Visible pores, fine fuzz, natural imperfections - NOT smooth CG plastic
+- Use Subsurface Scattering (SSS) for warm, luminous, lifelike skin
+- Eyes must be ultra-detailed with iris depth, reflections, and life
+- Rosy cheeks, natural skin color variations
 
-Constraint: Maintain consistent cartoon character design, keep the recognizable features
-from reference but stylized as 3D animation character."""
+{CINEMATIC_PAINTING_STYLE.strip()}
+
+FINAL OUTPUT: A premium cinematic digital painting worthy of a $500 commissioned artwork.
+The child should be immediately recognizable to their parents."""
 
         return enhanced_prompt

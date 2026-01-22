@@ -20,7 +20,7 @@ class EmailService:
     def __init__(self):
         self.settings = get_settings()
         self.api_key = getattr(self.settings, 'resend_api_key', None)
-        self.from_email = getattr(self.settings, 'from_email', 'MagicTales <noreply@zelavokids.com>')
+        self.from_email = getattr(self.settings, 'from_email', 'StoryGift <noreply@storygift.in>')
         self.base_url = "https://api.resend.com"
     
     def _is_configured(self) -> bool:
@@ -180,10 +180,10 @@ class EmailService:
                     <tr>
                         <td style="background: #f9fafb; padding: 20px 30px; text-align: center; border-radius: 0 0 16px 16px; border-top: 1px solid #e5e7eb;">
                             <p style="margin: 0 0 10px; color: #6b7280; font-size: 12px;">
-                                Made with ❤️ by MagicTales
+                                Made with ❤️ by StoryGift
                             </p>
                             <p style="margin: 0; color: #9ca3af; font-size: 11px;">
-                                © 2026 Zelavo Kids. All rights reserved.
+                                © 2026 StoryGift. All rights reserved.
                             </p>
                         </td>
                     </tr>
@@ -212,8 +212,8 @@ What's included:
 - Print-ready PDF format
 - Unlimited downloads (30 days)
 
-Made with love by MagicTales
-© 2026 Zelavo Kids
+Made with love by StoryGift
+© 2026 StoryGift
 """
         
         return await self.send_email(

@@ -214,18 +214,21 @@ class StoryGiftPDFGeneratorService:
         Matches the frontend CoverPageCard.tsx styling:
         - Amber-400 title text in top area
         - White child name in bottom area
-        - Gradient overlays (simulated with semi-transparent rects)
+        - Subtle gradient overlays (not solid bars)
         """
         try:
-            # Draw cover image as full-page background
+            # Draw cover image as full-page background - FILL the entire page
             img = Image.open(BytesIO(cover_image))
             img_reader = ImageReader(img)
+            
+            # Scale image to cover the ENTIRE page (no grey borders)
+            # Use mask=None and fit to page dimensions exactly
             c.drawImage(
                 img_reader,
                 0, 0,
                 width=PAGE_WIDTH,
                 height=PAGE_HEIGHT,
-                preserveAspectRatio=True,
+                preserveAspectRatio=False,  # Fill entire page, no grey bars
                 anchor='c'
             )
 
@@ -245,10 +248,17 @@ class StoryGiftPDFGeneratorService:
                     display_title = re.sub(pattern, '', display_title, flags=re.IGNORECASE)
                 display_title = display_title.strip()
             
-            # Top gradient overlay (semi-transparent black, top 25% of page)
+            # TOP GRADIENT: Multiple thin layers for smooth fade (like CSS gradient)
+            # Height reduced to just cover the title area
             c.saveState()
-            c.setFillColor(Color(0, 0, 0, alpha=0.6))
-            c.rect(0, PAGE_HEIGHT - 2.5*inch, PAGE_WIDTH, 2.5*inch, fill=1, stroke=0)
+            gradient_layers = 5
+            total_height = 1.5 * inch  # Reduced from 2.5 inches
+            for i in range(gradient_layers):
+                layer_alpha = 0.5 * (1 - i / gradient_layers)  # Fades from 0.5 to 0
+                layer_y = PAGE_HEIGHT - (i + 1) * (total_height / gradient_layers)
+                layer_h = total_height / gradient_layers
+                c.setFillColor(Color(0, 0, 0, alpha=layer_alpha))
+                c.rect(0, layer_y, PAGE_WIDTH, layer_h, fill=1, stroke=0)
             c.restoreState()
 
             # Title text in AMBER-400 color: rgb(251, 191, 36) = #fbbf24
@@ -266,13 +276,20 @@ class StoryGiftPDFGeneratorService:
                 title_width = c.stringWidth(title_upper, "Helvetica-Bold", 32)
             
             title_x = (PAGE_WIDTH - title_width) / 2
-            c.drawString(title_x, PAGE_HEIGHT - 1.3*inch, title_upper)
+            # Position title closer to top edge
+            c.drawString(title_x, PAGE_HEIGHT - 0.9*inch, title_upper)
             c.restoreState()
 
-            # Bottom gradient overlay (semi-transparent black, bottom 20% of page)
+            # BOTTOM GRADIENT: Multiple thin layers for smooth fade
+            # Height reduced to just cover the name area
             c.saveState()
-            c.setFillColor(Color(0, 0, 0, alpha=0.75))
-            c.rect(0, 0, PAGE_WIDTH, 2*inch, fill=1, stroke=0)
+            total_bottom_height = 1.2 * inch  # Reduced from 2 inches
+            for i in range(gradient_layers):
+                layer_alpha = 0.6 * (1 - i / gradient_layers)  # Fades from 0.6 to 0
+                layer_y = i * (total_bottom_height / gradient_layers)
+                layer_h = total_bottom_height / gradient_layers
+                c.setFillColor(Color(0, 0, 0, alpha=layer_alpha))
+                c.rect(0, layer_y, PAGE_WIDTH, layer_h, fill=1, stroke=0)
             c.restoreState()
 
             # "STARRING" label in gray
@@ -281,7 +298,7 @@ class StoryGiftPDFGeneratorService:
             c.setFont("Helvetica", 12)
             starring_text = "STARRING"
             starring_width = c.stringWidth(starring_text, "Helvetica", 12)
-            c.drawString((PAGE_WIDTH - starring_width) / 2, 1.3*inch, starring_text)
+            c.drawString((PAGE_WIDTH - starring_width) / 2, 0.65*inch, starring_text)
             c.restoreState()
 
             # Child name in WHITE, bold
@@ -290,7 +307,7 @@ class StoryGiftPDFGeneratorService:
             c.setFont("Helvetica-Bold", 28)
             name_upper = child_name.upper()
             name_width = c.stringWidth(name_upper, "Helvetica-Bold", 28)
-            c.drawString((PAGE_WIDTH - name_width) / 2, 0.8*inch, name_upper)
+            c.drawString((PAGE_WIDTH - name_width) / 2, 0.25*inch, name_upper)
             c.restoreState()
 
         except Exception as e:

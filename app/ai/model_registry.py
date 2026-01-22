@@ -114,50 +114,11 @@ MODELS: Dict[str, ModelConfig] = {
         }
     ),
 
-    "pulid_face_swap": ModelConfig(
-        model_id="pulid_face_swap",
-        endpoint="fal-ai/flux-pulid",
-        model_type=ModelType.FACE_SWAP,
-        cost_per_image=0.035,
-        avg_latency_seconds=10,
-        supports_negative_prompt=True,
-        supports_seed=False,
-        timeout_seconds=180,
-        default_params={
-            "numInferenceSteps": 40,         # Balanced quality/speed for face swapping
-            "guidanceScale": 7.0,
-            "idWeight": 0.85,               # High weight for precise face swapping
-            "imageSize": {"width": 1024, "height": 1024},  # Match Step 1 output
-        }
-    ),
+    # PuLID models removed - using NanoBanana and Cartoon3D pipelines only
 
     # ========== FACE EMBEDDING MODELS ==========
 
-    "flux_pulid": ModelConfig(
-        model_id="flux_pulid",
-        endpoint="fal-ai/flux-pulid",
-        model_type=ModelType.FACE_EMBEDDING,
-        cost_per_image=0.045,
-        avg_latency_seconds=12,
-        default_params={
-            "numInferenceSteps": 50,         # ✅ MORE STEPS for quality
-            "guidanceScale": 7.5,
-            "idWeight": 0.75,               # ✅ LOWER WEIGHT to prevent face distortion
-            "imageSize": {"width": 768, "height": 768},  # ✅ SQUARE for better scenes
-        }
-    ),
 
-    "instant_id": ModelConfig(
-        model_id="instant_id",
-        endpoint="fal-ai/instantid",
-        model_type=ModelType.FACE_EMBEDDING,
-        cost_per_image=0.04,
-        avg_latency_seconds=10,
-        default_params={
-            "numInferenceSteps": 30,
-            "guidanceScale": 7.5,
-        }
-    ),
 
     # ========== STORYGIFT-STYLE MODELS ==========
 
