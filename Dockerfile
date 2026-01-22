@@ -17,10 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Playwright/Chromium dependencies
     libnss3 \
     libnspr4 \
-    libasound2 \
+    libasound2t64 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
-    libcups2 \
+    libcups2t64 \
     libdrm2 \
     libdbus-1-3 \
     libxkbcommon0 \
