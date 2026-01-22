@@ -37,6 +37,9 @@ cryptography==41.0.7
 # Rate Limiting
 slowapi==0.1.9
 
+# HTTP Client (for REST fallback)
+requests==2.31.0
+
 # Utilities
 python-dotenv==1.0.0
 tenacity==8.2.3
