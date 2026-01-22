@@ -1,0 +1,79 @@
+# Render Blueprint for MagicTales Backend
+# Deploy at: https://dashboard.render.com/
+
+services:
+  # Backend API Service
+  - type: web
+    name: magictales-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: singapore  # Closest to India for low latency
+    plan: starter  # $7/month - 512MB RAM, 0.5 CPU (upgrade to standard for prod)
+    healthCheckPath: /health
+    envVars:
+      # App Configuration
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_SECRET_KEY
+        generateValue: true  # Render generates a secure secret
+
+      # Database (Supabase) - Set these in Render dashboard
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+      # Storage (Cloudflare R2) - Set in dashboard
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+      - key: R2_ENDPOINT_URL
+        sync: false
+
+      # AI Services - Set in dashboard
+      - key: FAL_API_KEY
+        sync: false
+
+      # Shopify - Set in dashboard
+      - key: SHOPIFY_API_KEY
+        sync: false
+      - key: SHOPIFY_API_SECRET
+        sync: false
+      - key: SHOPIFY_SHOP_DOMAIN
+        sync: false
+      - key: SHOPIFY_PRODUCT_VARIANT_ID
+        sync: false
+      - key: SHOPIFY_WEBHOOK_SECRET
+        sync: false
+
+      # Email - Set in dashboard
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        value: "StoryGift <onboarding@resend.dev>"
+
+      # Rate Limiting
+      - key: RATE_LIMIT_PREVIEWS_PER_DAY
+        value: "3"
+      - key: RATE_LIMIT_UPLOADS_PER_HOUR
+        value: "10"
+
+      # Generation Settings
+      - key: PREVIEW_PAGES
+        value: "5"
+      - key: FULL_BOOK_PAGES
+        value: "10"
+      - key: IMAGE_QUALITY
+        value: high

@@ -224,6 +224,127 @@ Made with love by StoryGift
         )
 
 
+    async def send_preview_ready_email(
+        self,
+        to_email: str,
+        child_name: str,
+        preview_url: str
+    ) -> bool:
+        """
+        Send "Your Preview is Ready!" notification email.
+        Sent when preview generation completes (before payment).
+
+        Args:
+            to_email: Customer email
+            child_name: Child's name in the story
+            preview_url: Link to preview page
+        """
+        subject = f"✨ {child_name}'s Story Preview is Ready!"
+
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8f4ff;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0;">
+                            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 700;">
+                                ✨ Your Preview is Ready! ✨
+                            </h1>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <p style="margin: 0 0 20px; color: #374151; font-size: 16px; line-height: 1.6;">
+                                Great news! We've created a magical preview of <strong>{child_name}'s</strong> personalized storybook. Take a look at the first 5 pages of their adventure!
+                            </p>
+
+                            <div style="background: #fef3c7; border-radius: 12px; padding: 16px 20px; margin: 20px 0;">
+                                <p style="margin: 0; color: #92400e; font-size: 14px;">
+                                    ⏰ <strong>Preview expires in 7 days.</strong> Complete your purchase to unlock all 10 pages!
+                                </p>
+                            </div>
+
+                            <!-- View Preview Button -->
+                            <table role="presentation" style="width: 100%; margin: 30px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{preview_url}" style="display: inline-block; background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); color: white; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 18px; font-weight: 700; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);">
+                                            👀 View Your Preview
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- What's in the preview -->
+                            <div style="border-top: 1px solid #e5e7eb; margin-top: 30px; padding-top: 30px;">
+                                <p style="margin: 0 0 15px; color: #1f2937; font-size: 16px; font-weight: 600;">
+                                    What's in your preview:
+                                </p>
+                                <ul style="margin: 0; padding: 0 0 0 20px; color: #4b5563; font-size: 14px; line-height: 1.8;">
+                                    <li>📖 5 beautifully illustrated story pages</li>
+                                    <li>🎨 {child_name} as the star of the adventure</li>
+                                    <li>✨ Custom cover design</li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background: #f9fafb; padding: 20px 30px; text-align: center; border-radius: 0 0 16px 16px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 10px; color: #6b7280; font-size: 12px;">
+                                Made with ❤️ by StoryGift
+                            </p>
+                            <p style="margin: 0; color: #9ca3af; font-size: 11px;">
+                                © 2026 StoryGift. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+        text_content = f"""
+Your Story Preview is Ready!
+
+Great news! We've created a magical preview of {child_name}'s personalized storybook.
+
+View your preview: {preview_url}
+
+⏰ Preview expires in 7 days. Complete your purchase to unlock all 10 pages!
+
+What's in your preview:
+- 5 beautifully illustrated story pages
+- {child_name} as the star of the adventure
+- Custom cover design
+
+Made with love by StoryGift
+© 2026 StoryGift
+"""
+
+        return await self.send_email(
+            to_email=to_email,
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content
+        )
+
+
 # Singleton instance
 _email_service: Optional[EmailService] = None
 

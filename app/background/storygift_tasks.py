@@ -36,6 +36,67 @@ from app.background.utils import (
 
 logger = structlog.get_logger()
 
+# Story-themed progress messages for each generation phase
+PROGRESS_MESSAGES = {
+    "face_analysis": [
+        "Discovering your hero's magical features... ✨",
+        "Reading the sparkle in their eyes... 👀",
+        "Learning what makes them special... 🌟",
+    ],
+    "cover": [
+        "Designing your magical book cover... 📚",
+        "Painting the entrance to adventure... 🎨",
+        "Creating the perfect first impression... ✨",
+    ],
+    "page_1": [
+        "Opening the enchanted storybook... 📖",
+        "Your hero is waking up to adventure! 🌅",
+        "Chapter 1 is brewing with magic... ☕",
+    ],
+    "page_2": [
+        "The adventure begins! 🚀",
+        "Magic sparkles fill the air... ✨",
+        "New discoveries await around every corner... 🔮",
+    ],
+    "page_3": [
+        "Meeting wonderful new friends! 🤝",
+        "The story grows more exciting... 🎭",
+        "Courage is building in your hero's heart... 💪",
+    ],
+    "page_4": [
+        "Plot twist incoming! 🎢",
+        "The adventure reaches new heights... 🏔️",
+        "Magic swirls all around... 🌀",
+    ],
+    "page_5": [
+        "Creating a magical moment! 🌈",
+        "Almost at the grand finale... 🎆",
+        "Wrapping up this chapter beautifully... 🎁",
+    ],
+    "finalizing": [
+        "Sprinkling final fairy dust... ✨",
+        "Putting the finishing touches... 🖌️",
+        "Your magical story is almost ready! 🎉",
+    ],
+}
+
+def get_progress_message(phase: str, page_num: int = None) -> str:
+    """Get a themed progress message for the current generation phase."""
+    import random
+
+    if page_num is not None:
+        # Use page-specific message if available
+        page_key = f"page_{page_num}"
+        if page_key in PROGRESS_MESSAGES:
+            return random.choice(PROGRESS_MESSAGES[page_key])
+
+    # Fall back to phase-based message
+    if phase in PROGRESS_MESSAGES:
+        return random.choice(PROGRESS_MESSAGES[phase])
+
+    # Default fallback
+    return "Creating magic... ✨"
+
 
 async def generate_storygift_preview(
     job_id: str,
@@ -73,7 +134,7 @@ async def generate_storygift_preview(
         )
 
         await update_job_status(job_id, JobStatus.PROCESSING, progress=0)
-        await update_job_progress(job_id, 0, f"Starting preview generation ({preview_pages} pages)...")
+        await update_job_progress(job_id, 0, "Preparing your magical adventure... 🎭")
 
         # Get StoryGift theme
         try:
@@ -98,7 +159,7 @@ async def generate_storygift_preview(
         # ============================================
         # PHASE 1: VLM Face Analysis (5% progress)
         # ============================================
-        await update_job_progress(job_id, 5, "Analyzing hero's features...")
+        await update_job_progress(job_id, 5, get_progress_message("face_analysis"))
 
         try:
             analyzed_features = await pipeline.analyze_face(photo_url)
@@ -118,7 +179,7 @@ async def generate_storygift_preview(
         # ============================================
         # PHASE 1.5: Generate Cover Image (10% progress)
         # ============================================
-        await update_job_progress(job_id, 10, "Creating your magical cover...")
+        await update_job_progress(job_id, 10, get_progress_message("cover"))
 
         cover_url = None
         try:
@@ -205,7 +266,7 @@ async def generate_storygift_preview(
                 await update_job_progress(
                     job_id,
                     progress,
-                    f"Generating page {page_num} of {len(pages_to_generate)}..."
+                    get_progress_message(f"page_{page_num}", page_num)
                 )
 
                 # Get prompt for this page (use realistic_prompt for NanoBanana)
@@ -293,7 +354,7 @@ async def generate_storygift_preview(
         # ============================================
         # PHASE 3: Finalize Preview (95% to 100%)
         # ============================================
-        await update_job_progress(job_id, 95, "Finalizing...")
+        await update_job_progress(job_id, 95, get_progress_message("finalizing"))
 
         # Build final preview_images from story_pages
         preview_images = [
@@ -364,6 +425,45 @@ async def generate_storygift_preview(
             preview_count=len(preview_images),
             generation_phase="preview"
         )
+
+        # ============================================
+        # PHASE 4: Send Preview Ready Email (only if user opted in)
+        # ============================================
+        try:
+            # Get customer email and notify preference from preview record
+            preview_data = db.table("previews").select(
+                "customer_email", "notify_on_complete"
+            ).eq("preview_id", preview_id).execute()
+
+            if preview_data.data:
+                record = preview_data.data[0]
+                customer_email = record.get("customer_email")
+                notify_on_complete = record.get("notify_on_complete", False)
+
+                # Only send email if user explicitly opted in via the popup
+                if notify_on_complete and customer_email:
+                    settings = get_settings()
+
+                    # Build preview URL
+                    preview_url = f"https://{settings.shopify_shop_domain}/apps/zelavo/preview/{preview_id}"
+
+                    email_service = get_email_service()
+                    await email_service.send_preview_ready_email(
+                        to_email=customer_email,
+                        child_name=safe_child_name,
+                        preview_url=preview_url
+                    )
+                    logger.info("Preview ready email sent", to=customer_email, preview_id=preview_id)
+                else:
+                    logger.info(
+                        "Skipping preview notification (user did not opt in)",
+                        preview_id=preview_id,
+                        has_email=bool(customer_email),
+                        notify_flag=notify_on_complete
+                    )
+        except Exception as email_error:
+            # Email failure should not fail the preview generation
+            logger.error("Failed to send preview ready email (non-fatal)", error=str(email_error))
 
     except Exception as e:
         logger.error(

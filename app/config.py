@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     nanobana_aspect_ratio: str = "5:4"            # StoryGift's optimized aspect ratio
     nanobana_quality: float = 0.95                # JPEG quality for PDF generation
 
+    # Parallel Generation Settings
+    parallel_batch_size: int = 3  # Number of pages to generate simultaneously (2-3 recommended)
+
     # Model Settings
     default_seed: int = 42
     guidance_scale: float = 7.5

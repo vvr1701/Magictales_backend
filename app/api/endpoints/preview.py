@@ -236,6 +236,61 @@ async def create_preview(
         )
 
 
+@router.post("/preview/{preview_id}/email")
+@limiter.limit("10/minute")
+async def save_notification_email(
+    request: Request,
+    preview_id: str,
+    email_request: dict
+):
+    """
+    Save email address for preview completion notification.
+
+    Called from GenerationFeed when user wants to be notified
+    instead of waiting on the page.
+
+    Request body: { "email": "user@example.com" }
+    """
+    try:
+        email = email_request.get("email", "").strip()
+
+        if not email:
+            raise HTTPException(status_code=400, detail="Email is required")
+
+        # Basic email validation
+        import re
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            raise HTTPException(status_code=400, detail="Invalid email format")
+
+        logger.info("Saving notification email", preview_id=preview_id, email=email)
+
+        db = get_db()
+
+        # Verify preview exists
+        preview_result = db.table("previews").select("preview_id, status").eq("preview_id", preview_id).execute()
+        if not preview_result.data:
+            raise HTTPException(status_code=404, detail="Preview not found")
+
+        # Update preview with email
+        update_result = db.table("previews").update({
+            "customer_email": email,
+            "notify_on_complete": True  # Flag to indicate user wants email notification
+        }).eq("preview_id", preview_id).execute()
+
+        if not update_result.data:
+            raise HTTPException(status_code=500, detail="Failed to save email")
+
+        logger.info("Notification email saved", preview_id=preview_id)
+
+        return {"success": True, "message": "Email saved. We'll notify you when your story is ready!"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to save notification email", preview_id=preview_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to save email")
+
+
 @router.post("/preview/{job_id}/retry", response_model=JobStartResponse)
 @limiter.limit("3/minute")
 async def retry_preview_generation(
