@@ -1,9 +1,9 @@
-FROM python:3.11-slim
+# Pin to Bookworm for stable package names
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-# Install system dependencies for WeasyPrint, MediaPipe, and base packages
-# Note: Using Debian bookworm package names
+# Install system dependencies for WeasyPrint, MediaPipe, and Playwright/Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # WeasyPrint dependencies
     libpango-1.0-0 \
@@ -14,22 +14,43 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # OpenCV/MediaPipe dependencies
     libgl1 \
     libglib2.0-0 \
+    # Playwright/Chromium dependencies
+    libnss3 \
+    libnspr4 \
+    libasound2 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libcairo2 \
+    libpangoft2-1.0-0 \
+    libx11-xcb1 \
+    libxcb-dri3-0 \
+    libxshmfence1 \
+    libxext6 \
+    libx11-6 \
+    # Fonts
+    fonts-liberation \
+    fonts-noto-color-emoji \
     # Utilities
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies first (needed for playwright install-deps)
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Install Playwright system dependencies (Chromium browser deps)
-# This uses apt-get internally, so must run as root
-RUN playwright install-deps chromium
 
 # Set Playwright browsers path to a location accessible by all users
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
 
-# Install Playwright browsers to the shared location
+# Install Playwright Chromium browser
 RUN playwright install chromium
 
 # Copy application
