@@ -109,12 +109,12 @@ async def get_my_creations(request: Request):
         # Logged-in user: fetch by customer_id
         result = db.table("previews").select("*").eq(
             "customer_id", customer_id
-        ).gt("expires_at", now).order("created_at", desc=True).limit(50).execute()
+        ).filter("expires_at", "gt", now).order("created_at", desc=True).limit(50).execute()
     else:
         # Guest: fetch by session_id
         result = db.table("previews").select("*").eq(
             "session_id", session_id
-        ).gt("expires_at", now).order("created_at", desc=True).limit(50).execute()
+        ).filter("expires_at", "gt", now).order("created_at", desc=True).limit(50).execute()
     
     previews = result.data or []
     
@@ -241,7 +241,7 @@ async def get_creation_count(request: Request):
     # Count non-expired previews for this session
     result = db.table("previews").select("preview_id", count="exact").eq(
         "session_id", session_id
-    ).gt("expires_at", now).execute()
+    ).filter("expires_at", "gt", now).execute()
     
     count = result.count if result.count else 0
     can_create = count < 3

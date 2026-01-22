@@ -97,7 +97,7 @@ async def create_preview(
             "preview_id"
         ).eq("photo_url", preview_request.photo_url).eq(
             "session_id", session_id
-        ).gte("created_at", cutoff_time).execute()
+        ).filter("created_at", "gte", cutoff_time).execute()
 
         if duplicate_check.data and len(duplicate_check.data) > 0:
             existing_preview_id = duplicate_check.data[0]["preview_id"]
@@ -130,7 +130,7 @@ async def create_preview(
             now = datetime.utcnow().isoformat()
             count_result = db_check.table("previews").select(
                 "preview_id", count="exact"
-            ).eq("session_id", session_id).gt("expires_at", now).execute()
+            ).eq("session_id", session_id).filter("expires_at", "gt", now).execute()
             
             current_count = count_result.count if count_result.count else 0
             if current_count >= 3:
