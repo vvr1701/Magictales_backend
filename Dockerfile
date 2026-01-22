@@ -1,3 +1,4 @@
+# Simplified Dockerfile - no Playwright needed
 FROM python:3.11-slim-bookworm
 
 WORKDIR /app
