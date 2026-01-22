@@ -2,50 +2,40 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for WeasyPrint, MediaPipe, and Playwright browsers
+# Install system dependencies for WeasyPrint, MediaPipe, and base packages
 # Note: Using Debian bookworm package names
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # WeasyPrint dependencies
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libffi-dev \
     shared-mime-info \
     # OpenCV/MediaPipe dependencies
     libgl1 \
     libglib2.0-0 \
-    # Playwright/Chromium dependencies
-    libnss3 \
-    libnspr4 \
-    libasound2t64 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2t64 \
-    libdrm2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libcairo2 \
-    fonts-liberation \
     # Utilities
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies first (needed for playwright install-deps)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers (Chromium for PDF generation)
+# Install Playwright system dependencies (Chromium browser deps)
+# This uses apt-get internally, so must run as root
+RUN playwright install-deps chromium
+
+# Set Playwright browsers path to a location accessible by all users
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+
+# Install Playwright browsers to the shared location
 RUN playwright install chromium
 
 # Copy application
 COPY . .
 
-# Create non-root user
+# Create non-root user and set ownership of app directory (including playwright browsers)
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
