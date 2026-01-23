@@ -51,13 +51,39 @@ def _create_rest_client():
             self._limit_count = None
             self._order_field = None
             self._order_desc = False
+            self._count_mode = None
 
-        def select(self, fields="*"):
+        def select(self, fields="*", count=None):
             self._select_fields = fields
+            self._count_mode = count  # "exact", "planned", or "estimated"
             return self
 
         def eq(self, column, value):
             self._filters.append(f"{column}=eq.{value}")
+            return self
+
+        def neq(self, column, value):
+            self._filters.append(f"{column}=neq.{value}")
+            return self
+
+        def gt(self, column, value):
+            self._filters.append(f"{column}=gt.{value}")
+            return self
+
+        def gte(self, column, value):
+            self._filters.append(f"{column}=gte.{value}")
+            return self
+
+        def lt(self, column, value):
+            self._filters.append(f"{column}=lt.{value}")
+            return self
+
+        def lte(self, column, value):
+            self._filters.append(f"{column}=lte.{value}")
+            return self
+
+        def is_(self, column, value):
+            self._filters.append(f"{column}=is.{value}")
             return self
 
         def limit(self, count):
@@ -152,13 +178,31 @@ def _create_rest_client():
                         order_val = f"{self._order_field}.desc" if self._order_desc else self._order_field
                         params["order"] = order_val
 
+                    # Handle count mode - add Prefer header
+                    request_headers = self.headers.copy()
+                    if self._count_mode:
+                        request_headers["Prefer"] = f"count={self._count_mode}"
+
                     # Make request
                     url = f"{self.base_url}/rest/v1/{self.table_name}"
-                    response = requests.get(url, headers=self.headers, params=params, timeout=30)
+                    response = requests.get(url, headers=request_headers, params=params, timeout=30)
 
-                    if response.status_code == 200:
+                    if response.status_code in [200, 206]:
                         data = response.json()
-                        return RestSupabaseResponse(data=data)
+
+                        # Parse count from Content-Range header if present
+                        # Format: "0-9/100" where 100 is total count
+                        count = len(data) if data else 0
+                        content_range = response.headers.get("Content-Range", "")
+                        if "/" in content_range:
+                            try:
+                                count = int(content_range.split("/")[-1])
+                            except (ValueError, IndexError):
+                                pass
+
+                        result = RestSupabaseResponse(data=data)
+                        result.count = count
+                        return result
                     else:
                         logger.error(f"REST query failed: {response.status_code} - {response.text}")
                         return RestSupabaseResponse(error=f"HTTP {response.status_code}")

@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     fallback_realistic_model: str = "nano_banana"  # Fallback uses same NanoBanana model
 
     # Testing Configuration
-    testing_mode_enabled: bool = True  # Toggle for development vs production
+    testing_mode_enabled: bool = False  # Toggle for development vs production (default False for safety)
     testing_mode_pages: int = 5        # Generate only 5 pages in testing mode
     production_pages: int = 10         # Full 10 pages for production
 

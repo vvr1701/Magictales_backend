@@ -217,19 +217,40 @@ class StoryGiftPDFGeneratorService:
         - Subtle gradient overlays (not solid bars)
         """
         try:
-            # Draw cover image as full-page background - FILL the entire page
+            # Draw elegant neutral background (cream with subtle gold tint)
+            # This works with ALL themes - ocean, forest, safari, space, etc.
+            c.saveState()
+            
+            # Soft cream background (#FFF8F0) - warm, premium, universal
+            c.setFillColor(Color(1.0, 0.97, 0.94))  # Cream white
+            c.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+            
+            # Optional: subtle inner shadow/border for depth
+            border_width = 0.15 * inch
+            c.setStrokeColor(Color(0.85, 0.80, 0.72))  # Soft gold/tan
+            c.setLineWidth(2)
+            c.rect(border_width, border_width, 
+                   PAGE_WIDTH - 2*border_width, PAGE_HEIGHT - 2*border_width, 
+                   fill=0, stroke=1)
+            
+            c.restoreState()
+            
+            # Draw cover image centered, preserving aspect ratio (5:4 fits in square)
             img = Image.open(BytesIO(cover_image))
             img_reader = ImageReader(img)
             
-            # Scale image to cover the ENTIRE page (no grey borders)
-            # Use mask=None and fit to page dimensions exactly
+            # Calculate image position to center it in the page
+            margin = 0.25 * inch
+            available_width = PAGE_WIDTH - 2 * margin
+            available_height = PAGE_HEIGHT - 2 * margin
+            
             c.drawImage(
                 img_reader,
-                0, 0,
-                width=PAGE_WIDTH,
-                height=PAGE_HEIGHT,
-                preserveAspectRatio=False,  # Fill entire page, no grey bars
-                anchor='c'
+                margin, margin,
+                width=available_width,
+                height=available_height,
+                preserveAspectRatio=True,  # Keep 5:4 ratio intact
+                anchor='c'  # Center the image
             )
 
             # Extract just the theme title (remove child name prefix like "vishn and the ")

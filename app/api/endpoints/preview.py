@@ -90,49 +90,67 @@ async def create_preview(
         # Idempotency check: Prevent duplicate preview creation within 30 seconds
         # This prevents double-clicks from creating multiple previews
         db_check = get_db()
-        cutoff_time = (datetime.utcnow() - timedelta(seconds=30)).isoformat()
+        cutoff_time = datetime.utcnow() - timedelta(seconds=30)
 
         # Check for recent preview with same photo and session
+        # Note: Using simple .eq() queries only for Supabase compatibility
         duplicate_check = db_check.table("previews").select(
-            "preview_id"
+            "preview_id, created_at"
         ).eq("photo_url", preview_request.photo_url).eq(
             "session_id", session_id
-        ).filter("created_at", "gte", cutoff_time).execute()
+        ).order("created_at", desc=True).limit(1).execute()
 
-        if duplicate_check.data and len(duplicate_check.data) > 0:
-            existing_preview_id = duplicate_check.data[0]["preview_id"]
+        # Filter by date in Python for compatibility
+        if duplicate_check.data:
+            for row in duplicate_check.data:
+                try:
+                    created_at = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                    if created_at >= cutoff_time:
+                        existing_preview_id = row["preview_id"]
+                        # Find the associated job
+                        job_check = db_check.table("generation_jobs").select(
+                            "job_id", "status"
+                        ).eq("reference_id", existing_preview_id).order(
+                            "queued_at", desc=True
+                        ).limit(1).execute()
 
-            # Find the associated job
-            job_check = db_check.table("generation_jobs").select(
-                "job_id", "status"
-            ).eq("reference_id", existing_preview_id).order(
-                "queued_at", desc=True
-            ).limit(1).execute()
-
-            if job_check.data:
-                existing_job = job_check.data[0]
-                logger.info(
-                    "Returning existing preview (idempotency check)",
-                    preview_id=existing_preview_id,
-                    job_id=existing_job["job_id"]
-                )
-                return JobStartResponse(
-                    job_id=existing_job["job_id"],
-                    preview_id=existing_preview_id,
-                    status=JobStatus(existing_job["status"]),
-                    estimated_time_seconds=180,
-                    message="Your storybook is already being generated..."
-                )
+                        if job_check.data:
+                            existing_job = job_check.data[0]
+                            logger.info(
+                                "Returning existing preview (idempotency check)",
+                                preview_id=existing_preview_id,
+                                job_id=existing_job["job_id"]
+                            )
+                            return JobStartResponse(
+                                job_id=existing_job["job_id"],
+                                preview_id=existing_preview_id,
+                                status=JobStatus(existing_job["status"]),
+                                estimated_time_seconds=180,
+                                message="Your storybook is already being generated..."
+                            )
+                except (ValueError, KeyError):
+                    pass  # Skip malformed dates
 
         # Guest limit check (max 3 stories for non-logged-in users)
         if not shopify_customer_id and session_id:
             db_check = get_db()
-            now = datetime.utcnow().isoformat()
+            now = datetime.utcnow()
+            # Fetch all previews for session and filter non-expired in Python
             count_result = db_check.table("previews").select(
-                "preview_id", count="exact"
-            ).eq("session_id", session_id).filter("expires_at", "gt", now).execute()
+                "preview_id, expires_at"
+            ).eq("session_id", session_id).execute()
             
-            current_count = count_result.count if count_result.count else 0
+            # Count non-expired previews in Python
+            current_count = 0
+            if count_result.data:
+                for row in count_result.data:
+                    try:
+                        expires_at = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                        if expires_at > now:
+                            current_count += 1
+                    except (ValueError, KeyError):
+                        pass
+            
             if current_count >= 3:
                 raise HTTPException(
                     status_code=403,
@@ -228,6 +246,9 @@ async def create_preview(
             message="Your personalized storybook is being generated..."
         )
 
+    except HTTPException:
+        # Re-raise HTTPExceptions (like GUEST_LIMIT_REACHED) as-is
+        raise
     except Exception as e:
         logger.error("Failed to create preview", error=str(e))
         raise HTTPException(

@@ -13,10 +13,10 @@ STORYGIFT_OCEAN_EXPLORER_THEME = StoryTemplate(
     theme_id="storygift_ocean_explorer",
     title_template="{name}'s Underwater Kingdom",
     description="Dive into a world where imagination runs as deep as the ocean",
-    default_costume="wearing a magical flowing aqua and silver outfit with translucent fins on arms",
+    default_costume="wearing a sleek magical diving suit in turquoise and silver with glowing trim and small translucent fins",
     protagonist_description="bright curious eyes, expression of wonder and joy",
     # Cover page settings for typography-ready composition
-    cover_costume="wearing a magical flowing aqua and silver underwater outfit with translucent fins on arms, graceful swimming pose",
+    cover_costume="wearing a sleek magical diving suit in turquoise and silver with glowing trim, small translucent fins on arms, adventurous swimming pose",
     cover_header_atmosphere="Crystal-clear turquoise water with volumetric god rays piercing down from the surface, creating dramatic light shafts",
     cover_magical_elements="Swirl of colorful tropical fish including clownfish and tangs around the body (not face). A friendly sea turtle beside the child. Glowing jellyfish above creating ambient light. Coral reef with bioluminescent elements in background, treasure chest partially visible.",
     cover_footer_description="Vibrant coral reef with colorful anemones, sea fans, and soft coral formations",
@@ -36,9 +36,9 @@ STORYGIFT_OCEAN_EXPLORER_THEME = StoryTemplate(
             page_number=2,
             scene_description="Magical underwater transformation",
             scene_type="transformation",
-            realistic_prompt="""Transformation and dive scene. Split-level shot showing half above water and half below. Above waterline shows the child named {name} mid-dive, arcing gracefully into ocean, splashes and bubbles erupting around them. Below waterline shows the magical transformation. The child now wearing flowing aquatic outfit in turquoise and silver with delicate translucent fins on arms and legs, small decorative gills on neck glowing softly, swimming effortlessly downward with arms extended. Rainbow of bubbles surrounds them, sunlight from above creates spectacular god rays through the water, silhouettes of fish swimming toward child in greeting. Child's excited expression visible, hair streaming upward from descent. Photorealistic water physics, magical costume details, dynamic composition showing motion and transformation.""",
+            realistic_prompt="""Magical underwater diving scene. The child named {name} swimming underwater surrounded by a beautiful swirl of magical golden bubbles and sparkles, arms stretched forward in a graceful diving pose. The child is wearing a sleek magical diving suit in turquoise and silver with small translucent fins on arms. Sunlight streams down through the crystal-clear turquoise water creating beautiful god rays. Colorful tropical fish swimming alongside the child in greeting. Rainbow of light refracting through the bubbles. Child's expression shows pure joy and wonder, eyes open looking forward into the adventure ahead. Hair gently flowing in water. Soft coral reef visible below. Magical transformation sparkles trailing behind. Beautiful natural underwater lighting, sense of freedom and adventure.""",
             story_text="In a swirl of bubbles and light, {name} transformed! Suddenly able to breathe underwater with magical gills that sparkled like diamonds, and wearing a special outfit that let {name} swim like a fish. With an excited laugh, {name} dove beneath the waves!",
-            costume="transforming into magical aquatic outfit with translucent fins"
+            costume="wearing magical diving suit in turquoise and silver with translucent fins"
         ),
 
         # === PAGE 3 - OCEAN WELCOME ===

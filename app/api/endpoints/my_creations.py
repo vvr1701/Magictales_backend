@@ -100,23 +100,32 @@ async def get_my_creations(request: Request):
         return MyCreationsResponse(creations=[], total=0, can_create_more=True)
     
     db = get_db()
-    now = datetime.utcnow().isoformat()
+    now = datetime.utcnow()
     
-    # Build query - fetch non-expired previews
+    # Build query - fetch previews and filter non-expired in Python
     # For logged-in users, fetch by customer_id
     # For guests, fetch by session_id
     if customer_id:
         # Logged-in user: fetch by customer_id
         result = db.table("previews").select("*").eq(
             "customer_id", customer_id
-        ).filter("expires_at", "gt", now).order("created_at", desc=True).limit(50).execute()
+        ).order("created_at", desc=True).limit(50).execute()
     else:
         # Guest: fetch by session_id
         result = db.table("previews").select("*").eq(
             "session_id", session_id
-        ).filter("expires_at", "gt", now).order("created_at", desc=True).limit(50).execute()
+        ).order("created_at", desc=True).limit(50).execute()
     
-    previews = result.data or []
+    # Filter out expired previews in Python
+    all_previews = result.data or []
+    previews = []
+    for p in all_previews:
+        try:
+            expires_at = datetime.fromisoformat(p["expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+            if expires_at > now:
+                previews.append(p)
+        except (ValueError, KeyError):
+            pass
     
     # Check if each preview has been paid for
     preview_ids = [p["preview_id"] for p in previews]
@@ -236,14 +245,24 @@ async def get_creation_count(request: Request):
         return {"count": 0, "limit": 3, "can_create": True}
     
     db = get_db()
-    now = datetime.utcnow().isoformat()
+    now = datetime.utcnow()
     
-    # Count non-expired previews for this session
-    result = db.table("previews").select("preview_id", count="exact").eq(
+    # Fetch all previews for this session and count non-expired in Python
+    result = db.table("previews").select("preview_id, expires_at").eq(
         "session_id", session_id
-    ).filter("expires_at", "gt", now).execute()
+    ).execute()
     
-    count = result.count if result.count else 0
+    # Count non-expired in Python
+    count = 0
+    if result.data:
+        for row in result.data:
+            try:
+                expires_at = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                if expires_at > now:
+                    count += 1
+            except (ValueError, KeyError):
+                pass
+    
     can_create = count < 3
     
     return {

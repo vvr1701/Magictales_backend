@@ -21,18 +21,17 @@ from app.routers import proxy
 from app.core.exceptions import ZelavoBaseException
 from app.core.rate_limiter import limiter
 
-# Create logs directory if it doesn't exist
-LOGS_DIR = Path(__file__).parent.parent / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
-
-# Configure Python's standard logging to write to file
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    handlers=[
-        # Console handler
+# Configure logging handlers based on environment
+# Render has read-only filesystem, so only use console logging there
+if os.getenv("RENDER"):
+    # Production on Render: stdout only (Render captures logs automatically)
+    log_handlers = [logging.StreamHandler()]
+else:
+    # Local development: console + file logging
+    LOGS_DIR = Path(__file__).parent.parent / "logs"
+    LOGS_DIR.mkdir(exist_ok=True)
+    log_handlers = [
         logging.StreamHandler(),
-        # File handler with rotation (10MB max, keep 5 backups)
         RotatingFileHandler(
             LOGS_DIR / "app.log",
             maxBytes=10*1024*1024,  # 10MB
@@ -40,6 +39,12 @@ logging.basicConfig(
             encoding="utf-8"
         )
     ]
+
+# Configure Python's standard logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=log_handlers
 )
 
 # Configure structlog
