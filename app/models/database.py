@@ -53,8 +53,15 @@ def _create_rest_client():
             self._order_desc = False
             self._count_mode = None
 
-        def select(self, fields="*", count=None):
-            self._select_fields = fields
+        def select(self, *args, count=None):
+            # Handle both select("col1", "col2") and select("col1,col2") formats
+            if len(args) == 0:
+                self._select_fields = "*"
+            elif len(args) == 1:
+                self._select_fields = args[0]
+            else:
+                # Multiple arguments - join them with commas
+                self._select_fields = ",".join(args)
             self._count_mode = count  # "exact", "planned", or "estimated"
             return self
 
@@ -242,8 +249,8 @@ def _create_rest_client():
             self.base_url = base_url
             self.headers = headers
 
-        def select(self, fields="*"):
-            return RestSupabaseQuery(self.name, self.base_url, self.headers).select(fields)
+        def select(self, *args):
+            return RestSupabaseQuery(self.name, self.base_url, self.headers).select(*args)
 
         def insert(self, data):
             """Insert data via REST API."""

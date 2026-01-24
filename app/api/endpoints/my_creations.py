@@ -93,99 +93,107 @@ async def get_my_creations(request: Request):
     - Results are sorted by created_at DESC
     - Expired previews are automatically filtered out
     """
-    session_id, customer_id = extract_session_and_customer(request)
-    
-    if not session_id and not customer_id:
-        # No identification - return empty
-        return MyCreationsResponse(creations=[], total=0, can_create_more=True)
-    
-    db = get_db()
-    now = datetime.utcnow()
-    
-    # Build query - fetch previews and filter non-expired in Python
-    # For logged-in users, fetch by customer_id
-    # For guests, fetch by session_id
-    if customer_id:
-        # Logged-in user: fetch by customer_id
-        result = db.table("previews").select("*").eq(
-            "customer_id", customer_id
-        ).order("created_at", desc=True).limit(50).execute()
-    else:
-        # Guest: fetch by session_id
-        result = db.table("previews").select("*").eq(
-            "session_id", session_id
-        ).order("created_at", desc=True).limit(50).execute()
-    
-    # Filter out expired previews in Python
-    all_previews = result.data or []
-    previews = []
-    for p in all_previews:
-        try:
-            expires_at = datetime.fromisoformat(p["expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
-            if expires_at > now:
-                previews.append(p)
-        except (ValueError, KeyError):
-            pass
-    
-    # Check if each preview has been paid for
-    preview_ids = [p["preview_id"] for p in previews]
-    paid_previews = set()
-    
-    if preview_ids:
-        orders = db.table("orders").select("preview_id").in_("preview_id", preview_ids).execute()
-        paid_previews = {o["preview_id"] for o in (orders.data or [])}
-    
-    # Get job_ids for any in-progress generations
-    job_map = {}
-    if preview_ids:
-        jobs = db.table("generation_jobs").select(
-            "job_id", "reference_id", "status"
-        ).in_("reference_id", preview_ids).execute()
-        for job in (jobs.data or []):
-            job_map[job["reference_id"]] = job["job_id"]
-    
-    # Build response
-    creations = []
-    for p in previews:
-        # Get cover URL from cover_url or preview_images
-        cover_url = p.get("cover_url")
-        if not cover_url and p.get("preview_images"):
-            images = p.get("preview_images", [])
-            if images:
-                # First image might be cover (page 0) or first page
-                cover_url = images[0] if isinstance(images[0], str) else images[0].get("url")
+    try:
+        session_id, customer_id = extract_session_and_customer(request)
         
-        creations.append(CreationItem(
-            preview_id=p["preview_id"],
-            child_name=p["child_name"],
-            theme=p["theme"],
-            cover_url=cover_url,
-            status=p["status"],
-            payment_status="paid" if p["preview_id"] in paid_previews else "unpaid",
-            created_at=p["created_at"],
-            expires_at=p["expires_at"],
-            days_remaining=calculate_days_remaining(p["expires_at"]),
-            job_id=job_map.get(p["preview_id"])
-        ))
-    
-    # Determine if user can create more (guests limited to 3)
-    can_create_more = True
-    if not customer_id and session_id:
-        # Guest user - check limit
-        can_create_more = len(creations) < 3
-    
-    logger.info(
-        "Fetched my creations",
-        customer_id=customer_id,
-        session_id=session_id[:20] if session_id else None,
-        count=len(creations)
-    )
-    
-    return MyCreationsResponse(
-        creations=creations,
-        total=len(creations),
-        can_create_more=can_create_more
-    )
+        if not session_id and not customer_id:
+            # No identification - return empty
+            return MyCreationsResponse(creations=[], total=0, can_create_more=True)
+        
+        db = get_db()
+        now = datetime.utcnow()
+        
+        # Build query - fetch previews and filter non-expired in Python
+        # For logged-in users, fetch by customer_id
+        # For guests, fetch by session_id
+        if customer_id:
+            # Logged-in user: fetch by customer_id
+            result = db.table("previews").select("*").eq(
+                "customer_id", customer_id
+            ).order("created_at", desc=True).limit(50).execute()
+        else:
+            # Guest: fetch by session_id
+            result = db.table("previews").select("*").eq(
+                "session_id", session_id
+            ).order("created_at", desc=True).limit(50).execute()
+        
+        # Filter out expired previews in Python
+        all_previews = result.data or []
+        previews = []
+        for p in all_previews:
+            try:
+                expires_at = datetime.fromisoformat(p["expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                if expires_at > now:
+                    previews.append(p)
+            except (ValueError, KeyError):
+                pass
+        
+        # Check if each preview has been paid for
+        preview_ids = [p["preview_id"] for p in previews]
+        paid_previews = set()
+        
+        if preview_ids:
+            orders = db.table("orders").select("preview_id").in_("preview_id", preview_ids).execute()
+            paid_previews = {o["preview_id"] for o in (orders.data or [])}
+        
+        # Get job_ids for any in-progress generations
+        job_map = {}
+        if preview_ids:
+            jobs = db.table("generation_jobs").select(
+                "job_id,reference_id,status"
+            ).in_("reference_id", preview_ids).execute()
+            for job in (jobs.data or []):
+                job_map[job["reference_id"]] = job["job_id"]
+        
+        # Build response
+        creations = []
+        for p in previews:
+            # Get cover URL from cover_url or preview_images
+            cover_url = p.get("cover_url")
+            if not cover_url and p.get("preview_images"):
+                images = p.get("preview_images", [])
+                if images:
+                    # First image might be cover (page 0) or first page
+                    cover_url = images[0] if isinstance(images[0], str) else images[0].get("url")
+            
+            creations.append(CreationItem(
+                preview_id=p["preview_id"],
+                child_name=p["child_name"],
+                theme=p["theme"],
+                cover_url=cover_url,
+                status=p["status"],
+                payment_status="paid" if p["preview_id"] in paid_previews else "unpaid",
+                created_at=p["created_at"],
+                expires_at=p["expires_at"],
+                days_remaining=calculate_days_remaining(p["expires_at"]),
+                job_id=job_map.get(p["preview_id"])
+            ))
+        
+        # Determine if user can create more (guests limited to 3)
+        can_create_more = True
+        if not customer_id and session_id:
+            # Guest user - check limit
+            can_create_more = len(creations) < 3
+        
+        logger.info(
+            "Fetched my creations",
+            customer_id=customer_id,
+            session_id=session_id[:20] if session_id else None,
+            count=len(creations)
+        )
+        
+        return MyCreationsResponse(
+            creations=creations,
+            total=len(creations),
+            can_create_more=can_create_more
+        )
+    except Exception as e:
+        logger.error(
+            "Error fetching my creations",
+            error=str(e),
+            error_type=type(e).__name__
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to fetch creations: {str(e)}")
 
 
 @router.post("/link-session", response_model=LinkSessionResponse)
