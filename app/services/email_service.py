@@ -94,18 +94,16 @@ class EmailService:
         to_email: str,
         child_name: str,
         story_title: str,
-        download_url: str,
-        preview_url: str
+        download_url: str
     ) -> bool:
         """
         Send "Your Book is Ready!" notification email.
-        
+
         Args:
             to_email: Customer email
             child_name: Child's name in the story
             story_title: Title of the storybook
             download_url: Direct PDF download URL
-            preview_url: Link to preview page
         """
         subject = f"🎉 {child_name}'s Storybook is Ready!"
         
@@ -156,11 +154,7 @@ class EmailService:
                                     </td>
                                 </tr>
                             </table>
-                            
-                            <p style="margin: 20px 0 0; color: #6b7280; font-size: 14px; text-align: center;">
-                                Or <a href="{preview_url}" style="color: #9333ea; text-decoration: underline;">view your book online</a>
-                            </p>
-                            
+
                             <!-- What's Included -->
                             <div style="border-top: 1px solid #e5e7eb; margin-top: 30px; padding-top: 30px;">
                                 <p style="margin: 0 0 15px; color: #1f2937; font-size: 16px; font-weight: 600;">
@@ -203,8 +197,6 @@ Great news! {child_name}'s personalized storybook has been created and is ready 
 Story: {story_title}
 
 Download your PDF: {download_url}
-
-Or view online: {preview_url}
 
 What's included:
 - 10-page personalized storybook

@@ -209,126 +209,132 @@ class StoryGiftPDFGeneratorService:
         story_title: str,
         child_name: str
     ):
-        """Draw the cover page with background image and title overlay.
+        """Draw the cover page with full-bleed image and premium title overlay.
         
-        Matches the frontend CoverPageCard.tsx styling:
-        - Amber-400 title text in top area
-        - White child name in bottom area
-        - Subtle gradient overlays (not solid bars)
+        Cover image is now 1:1 aspect ratio matching the PDF page.
+        Uses smooth gradient overlays (no layering artifacts).
         """
         try:
-            # Draw elegant neutral background (cream with subtle gold tint)
-            # This works with ALL themes - ocean, forest, safari, space, etc.
-            c.saveState()
-            
-            # Soft cream background (#FFF8F0) - warm, premium, universal
-            c.setFillColor(Color(1.0, 0.97, 0.94))  # Cream white
-            c.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
-            
-            # Optional: subtle inner shadow/border for depth
-            border_width = 0.15 * inch
-            c.setStrokeColor(Color(0.85, 0.80, 0.72))  # Soft gold/tan
-            c.setLineWidth(2)
-            c.rect(border_width, border_width, 
-                   PAGE_WIDTH - 2*border_width, PAGE_HEIGHT - 2*border_width, 
-                   fill=0, stroke=1)
-            
-            c.restoreState()
-            
-            # Draw cover image centered, preserving aspect ratio (5:4 fits in square)
+            # Load and draw cover image to fill entire page (no border needed)
             img = Image.open(BytesIO(cover_image))
             img_reader = ImageReader(img)
             
-            # Calculate image position to center it in the page
-            margin = 0.25 * inch
-            available_width = PAGE_WIDTH - 2 * margin
-            available_height = PAGE_HEIGHT - 2 * margin
-            
+            # Draw image edge-to-edge (1:1 image on 10x10" page = perfect fit)
             c.drawImage(
                 img_reader,
-                margin, margin,
-                width=available_width,
-                height=available_height,
-                preserveAspectRatio=True,  # Keep 5:4 ratio intact
-                anchor='c'  # Center the image
+                0, 0,
+                width=PAGE_WIDTH,
+                height=PAGE_HEIGHT,
+                preserveAspectRatio=False  # Fill completely since aspect matches
             )
 
-            # Extract just the theme title (remove child name prefix like "vishn and the ")
-            # to match CoverPageCard.tsx displayTitle logic
+            # Extract display title (remove child name prefix)
             display_title = story_title
             if child_name.lower() in story_title.lower():
-                # Remove patterns like "Child's Adventure" or "Child and the Adventure"
                 import re
                 patterns = [
-                    rf"{re.escape(child_name)}'?s?\s*",       # "Child's " or "Childs "
-                    rf"{re.escape(child_name)}\s+and\s+the\s+",  # "Child and the "
-                    r"^and\s+the\s+",                         # "and the " at start
-                    r"^the\s+",                                # "the " at start
+                    rf"{re.escape(child_name)}'?s?\s*",
+                    rf"{re.escape(child_name)}\s+and\s+the\s+",
+                    r"^and\s+the\s+",
+                    r"^the\s+",
                 ]
                 for pattern in patterns:
                     display_title = re.sub(pattern, '', display_title, flags=re.IGNORECASE)
                 display_title = display_title.strip()
-            
-            # TOP GRADIENT: Multiple thin layers for smooth fade (like CSS gradient)
-            # Height reduced to just cover the title area
+
+            # =========================================================
+            # TOP GRADIENT OVERLAY - Premium smooth fade for title
+            # Single gradient rectangle (no layering = no artifact lines)
+            # =========================================================
             c.saveState()
-            gradient_layers = 5
-            total_height = 1.5 * inch  # Reduced from 2.5 inches
-            for i in range(gradient_layers):
-                layer_alpha = 0.5 * (1 - i / gradient_layers)  # Fades from 0.5 to 0
-                layer_y = PAGE_HEIGHT - (i + 1) * (total_height / gradient_layers)
-                layer_h = total_height / gradient_layers
-                c.setFillColor(Color(0, 0, 0, alpha=layer_alpha))
-                c.rect(0, layer_y, PAGE_WIDTH, layer_h, fill=1, stroke=0)
+            
+            # Create a smooth dark gradient at top for title readability
+            # Uses a single semi-transparent overlay
+            gradient_height = 2.0 * inch
+            c.setFillColor(Color(0, 0, 0, alpha=0.55))
+            c.rect(0, PAGE_HEIGHT - gradient_height, PAGE_WIDTH, gradient_height, fill=1, stroke=0)
+            
+            # Add a second lighter layer below for smoother fade effect
+            fade_height = 0.8 * inch
+            c.setFillColor(Color(0, 0, 0, alpha=0.25))
+            c.rect(0, PAGE_HEIGHT - gradient_height - fade_height, PAGE_WIDTH, fade_height, fill=1, stroke=0)
+            
             c.restoreState()
 
             # Title text in AMBER-400 color: rgb(251, 191, 36) = #fbbf24
+            # Premium styling with drop shadow effect
             c.saveState()
-            c.setFillColor(Color(251/255, 191/255, 36/255))  # Amber-400
-            c.setFont("Helvetica-Bold", 42)
             
-            # Center the title - use uppercase to match preview
             title_upper = display_title.upper()
-            title_width = c.stringWidth(title_upper, "Helvetica-Bold", 42)
+            title_y = PAGE_HEIGHT - 1.0 * inch
             
-            # Handle long titles by reducing font size
-            if title_width > PAGE_WIDTH - 40:
-                c.setFont("Helvetica-Bold", 32)
-                title_width = c.stringWidth(title_upper, "Helvetica-Bold", 32)
+            # Calculate font size (responsive to text length)
+            font_size = 48
+            c.setFont("Helvetica-Bold", font_size)
+            title_width = c.stringWidth(title_upper, "Helvetica-Bold", font_size)
+            
+            if title_width > PAGE_WIDTH - 60:
+                font_size = 38
+                c.setFont("Helvetica-Bold", font_size)
+                title_width = c.stringWidth(title_upper, "Helvetica-Bold", font_size)
+            
+            if title_width > PAGE_WIDTH - 60:
+                font_size = 32
+                c.setFont("Helvetica-Bold", font_size)
+                title_width = c.stringWidth(title_upper, "Helvetica-Bold", font_size)
             
             title_x = (PAGE_WIDTH - title_width) / 2
-            # Position title closer to top edge
-            c.drawString(title_x, PAGE_HEIGHT - 0.9*inch, title_upper)
+            
+            # Draw drop shadow for depth (slight offset)
+            c.setFillColor(Color(0, 0, 0, alpha=0.6))
+            c.drawString(title_x + 2, title_y - 2, title_upper)
+            
+            # Draw main title in amber
+            c.setFillColor(Color(251/255, 191/255, 36/255))  # Amber-400
+            c.drawString(title_x, title_y, title_upper)
+            
             c.restoreState()
 
-            # BOTTOM GRADIENT: Multiple thin layers for smooth fade
-            # Height reduced to just cover the name area
+            # =========================================================
+            # BOTTOM GRADIENT OVERLAY - Premium fade for child name
+            # =========================================================
             c.saveState()
-            total_bottom_height = 1.2 * inch  # Reduced from 2 inches
-            for i in range(gradient_layers):
-                layer_alpha = 0.6 * (1 - i / gradient_layers)  # Fades from 0.6 to 0
-                layer_y = i * (total_bottom_height / gradient_layers)
-                layer_h = total_bottom_height / gradient_layers
-                c.setFillColor(Color(0, 0, 0, alpha=layer_alpha))
-                c.rect(0, layer_y, PAGE_WIDTH, layer_h, fill=1, stroke=0)
+            
+            bottom_gradient_height = 1.8 * inch
+            c.setFillColor(Color(0, 0, 0, alpha=0.60))
+            c.rect(0, 0, PAGE_WIDTH, bottom_gradient_height, fill=1, stroke=0)
+            
+            # Lighter fade at top of bottom gradient
+            fade_top_height = 0.6 * inch
+            c.setFillColor(Color(0, 0, 0, alpha=0.25))
+            c.rect(0, bottom_gradient_height, PAGE_WIDTH, fade_top_height, fill=1, stroke=0)
+            
             c.restoreState()
 
-            # "STARRING" label in gray
+            # "STARRING" label in light gray
             c.saveState()
-            c.setFillColor(Color(0.8, 0.8, 0.8, alpha=1))  # Light gray like preview
-            c.setFont("Helvetica", 12)
+            c.setFillColor(Color(0.85, 0.85, 0.85))
+            c.setFont("Helvetica", 13)
             starring_text = "STARRING"
-            starring_width = c.stringWidth(starring_text, "Helvetica", 12)
-            c.drawString((PAGE_WIDTH - starring_width) / 2, 0.65*inch, starring_text)
+            starring_width = c.stringWidth(starring_text, "Helvetica", 13)
+            c.drawString((PAGE_WIDTH - starring_width) / 2, 0.75 * inch, starring_text)
             c.restoreState()
 
-            # Child name in WHITE, bold
+            # Child name in WHITE with drop shadow
             c.saveState()
-            c.setFillColor(white)
-            c.setFont("Helvetica-Bold", 28)
             name_upper = child_name.upper()
-            name_width = c.stringWidth(name_upper, "Helvetica-Bold", 28)
-            c.drawString((PAGE_WIDTH - name_width) / 2, 0.25*inch, name_upper)
+            c.setFont("Helvetica-Bold", 32)
+            name_width = c.stringWidth(name_upper, "Helvetica-Bold", 32)
+            name_x = (PAGE_WIDTH - name_width) / 2
+            name_y = 0.30 * inch
+            
+            # Drop shadow
+            c.setFillColor(Color(0, 0, 0, alpha=0.5))
+            c.drawString(name_x + 1.5, name_y - 1.5, name_upper)
+            
+            # Main text
+            c.setFillColor(white)
+            c.drawString(name_x, name_y, name_upper)
             c.restoreState()
 
         except Exception as e:

@@ -114,6 +114,7 @@ class NanoBananaPipeline:
         face_url: str,
         child_name: str,
         analyzed_features: Optional[str] = None,
+        aspect_ratio: str = "5:4",  # Default for story pages, use "1:1" for covers
         seed: Optional[int] = None
     ) -> GenerationResult:
         """
@@ -152,7 +153,7 @@ class NanoBananaPipeline:
                 payload = {
                     "prompt": enhanced_prompt,
                     "image_urls": [face_url],  # NanoBanana uses image_urls array
-                    "aspect_ratio": "5:4",  # StoryGift's optimized ratio
+                    "aspect_ratio": aspect_ratio,  # 5:4 for pages, 1:1 for cover
                     "negative_prompt": "black bars, letterbox, scope, cinema bars, blurry, low quality, distorted face",
                 }
 
@@ -192,7 +193,7 @@ class NanoBananaPipeline:
                         metadata={
                             "analyzed_features": analyzed_features,
                             "seed": seed,
-                            "aspect_ratio": "5:4"
+                            "aspect_ratio": aspect_ratio
                         }
                     )
                 else:

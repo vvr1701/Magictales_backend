@@ -195,11 +195,13 @@ async def generate_storygift_preview(
             )
 
             # Generate cover using same face analysis pipeline for consistency
+            # Cover uses 1:1 aspect ratio to perfectly fit PDF page (10x10 inches)
             cover_result = await pipeline.generate_with_face_analysis(
                 prompt=cover_prompt,
                 face_url=photo_url,
                 child_name=safe_child_name,
-                analyzed_features=analyzed_features
+                analyzed_features=analyzed_features,
+                aspect_ratio="1:1"  # Cover is square for PDF, story pages use 5:4
             )
 
             logger.info(
@@ -444,8 +446,8 @@ async def generate_storygift_preview(
                 if notify_on_complete and customer_email:
                     settings = get_settings()
 
-                    # Build preview URL
-                    preview_url = f"https://{settings.shopify_shop_domain}/apps/zelavo/preview/{preview_id}"
+                    # Build preview URL using frontend_url config (hash routing)
+                    preview_url = f"{settings.frontend_url}#/preview/{preview_id}"
 
                     email_service = get_email_service()
                     await email_service.send_preview_ready_email(
@@ -690,19 +692,13 @@ async def generate_remaining_pages_and_pdf(
                 order_result = db.table("orders").select("customer_email").eq("order_id", order_id).execute()
                 if order_result.data and order_result.data[0].get("customer_email"):
                     customer_email = order_result.data[0]["customer_email"]
-                    settings = get_settings()
-                    
-                    # Build download and preview URLs
-                    download_url = pdf_url  # Direct PDF URL
-                    preview_url = f"https://{settings.shopify_shop_domain}/apps/zelavo/preview/{preview_id}"
-                    
+
                     email_service = get_email_service()
                     await email_service.send_book_ready_email(
                         to_email=customer_email,
                         child_name=safe_child_name,
                         story_title=story_title,
-                        download_url=download_url,
-                        preview_url=preview_url
+                        download_url=pdf_url
                     )
                     logger.info("Completion email sent", to=customer_email)
                 else:

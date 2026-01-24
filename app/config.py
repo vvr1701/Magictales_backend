@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     # Email (Resend)
     resend_api_key: str = ""  # Get from resend.com
     from_email: str = "StoryGift <noreply@storygift.in>"
+    
+    # Frontend URL for email links (hash routing)
+    # Format: base URL without trailing slash, preview path uses /#/preview/{id}
+    frontend_url: str = "https://storygift-2061.myshopify.com/pages/create-story"
 
     # StoryGift Generation Settings
     default_theme: str = "storygift_magic_castle"  # Primary StoryGift theme

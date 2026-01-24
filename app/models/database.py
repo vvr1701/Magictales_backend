@@ -83,7 +83,25 @@ def _create_rest_client():
             return self
 
         def is_(self, column, value):
+            # Convert Python None to PostgREST 'null'
+            if value is None:
+                value = "null"
+            elif value is True:
+                value = "true"
+            elif value is False:
+                value = "false"
             self._filters.append(f"{column}=is.{value}")
+            return self
+
+        def in_(self, column, values):
+            """Filter where column value is in a list of values."""
+            if not values:
+                # Empty list - return no results by using impossible filter
+                self._filters.append(f"{column}=eq.__empty__")
+                return self
+            # PostgREST format: column=in.(val1,val2,val3)
+            values_str = ",".join(str(v) for v in values)
+            self._filters.append(f"{column}=in.({values_str})")
             return self
 
         def limit(self, count):

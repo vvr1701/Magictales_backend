@@ -44,28 +44,53 @@ async def get_download(identifier: str):
 
         order = order_response.data[0]
 
+        # Get preview data (used for both status check and download URLs)
+        preview_response = db.table("previews").select("*").eq("preview_id", order["preview_id"]).execute()
+
+        if not preview_response.data:
+            raise HTTPException(status_code=404, detail="Associated preview not found")
+
+        preview = preview_response.data[0]
+        preview_pdf_url = preview.get("pdf_url")
+        # Check if preview indicates completion (has PDF URL and proper status)
+        preview_ready = bool(preview_pdf_url) and preview.get("generation_phase") == "complete"
+
         # Check order status - only COMPLETED orders can be downloaded
         # Order flow: PAID -> GENERATING_PDF -> COMPLETED
-        # B-4 FIX: Only allow COMPLETED to prevent broken download links
+        # FALLBACK: If preview has pdf_url and is complete, allow download even if order status is stuck
         valid_download_statuses = [OrderStatus.COMPLETED.value]
-        
-        if order["status"] == OrderStatus.GENERATING_PDF.value:
-            return DownloadResponse(
-                status="generating",
-                progress=75,
-                message="Your book is still being created. Please check back in a few minutes."
-            )
-        
-        # B-4 FIX: PAID status means PDF is still being generated
-        if order["status"] == OrderStatus.PAID.value:
-            return DownloadResponse(
-                status="generating",
-                progress=25,
-                message="Payment received! Your book is now being created. Please check back in a few minutes."
-            )
 
         if order["status"] not in valid_download_statuses:
-            if order["status"] == OrderStatus.FAILED.value:
+            # FALLBACK: Check if preview is actually ready (handles stuck order status)
+            if preview_ready:
+                logger.warning(
+                    "Order status not COMPLETED but preview has PDF, allowing download",
+                    order_id=order.get("order_id"),
+                    order_status=order["status"],
+                    preview_id=order["preview_id"]
+                )
+                # Fix the stuck order status
+                try:
+                    db.table("orders").update({
+                        "status": OrderStatus.COMPLETED.value,
+                        "pdf_url": preview_pdf_url
+                    }).eq("order_id", order.get("order_id")).execute()
+                    logger.info("Fixed stuck order status", order_id=order.get("order_id"))
+                except Exception as fix_err:
+                    logger.warning("Failed to fix order status", error=str(fix_err))
+            elif order["status"] == OrderStatus.GENERATING_PDF.value:
+                return DownloadResponse(
+                    status="generating",
+                    progress=75,
+                    message="Your book is still being created. Please check back in a few minutes."
+                )
+            elif order["status"] == OrderStatus.PAID.value:
+                return DownloadResponse(
+                    status="generating",
+                    progress=25,
+                    message="Payment received! Your book is now being created. Please check back in a few minutes."
+                )
+            elif order["status"] == OrderStatus.FAILED.value:
                 raise HTTPException(
                     status_code=500,
                     detail="Order generation failed. Please contact support."
@@ -86,15 +111,7 @@ async def get_download(identifier: str):
             created_at = datetime.fromisoformat(order.get("created_at", datetime.utcnow().isoformat()).replace('Z', '+00:00'))
             expires_at = created_at + timedelta(days=30)
 
-        # Get preview data for image URLs
-        preview_response = db.table("previews").select("*").eq("preview_id", order["preview_id"]).execute()
-
-        if not preview_response.data:
-            raise HTTPException(status_code=404, detail="Associated preview not found")
-
-        preview = preview_response.data[0]
-
-        # Generate signed URLs
+        # Generate signed URLs (preview already fetched above)
         storage = StorageService()
 
         # PDF download - use public URL directly since R2 bucket is public
