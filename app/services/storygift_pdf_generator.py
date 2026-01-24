@@ -243,22 +243,32 @@ class StoryGiftPDFGeneratorService:
                 display_title = display_title.strip()
 
             # =========================================================
-            # TOP GRADIENT OVERLAY - Premium smooth fade for title
-            # Single gradient rectangle (no layering = no artifact lines)
+            # TOP GRADIENT OVERLAY - Smooth multi-layer fade (matches CSS)
+            # CSS: bg-gradient-to-b from-black/70 via-black/40 to-transparent
             # =========================================================
             c.saveState()
-            
-            # Create a smooth dark gradient at top for title readability
-            # Uses a single semi-transparent overlay
-            gradient_height = 2.0 * inch
-            c.setFillColor(Color(0, 0, 0, alpha=0.55))
-            c.rect(0, PAGE_HEIGHT - gradient_height, PAGE_WIDTH, gradient_height, fill=1, stroke=0)
-            
-            # Add a second lighter layer below for smoother fade effect
-            fade_height = 0.8 * inch
-            c.setFillColor(Color(0, 0, 0, alpha=0.25))
-            c.rect(0, PAGE_HEIGHT - gradient_height - fade_height, PAGE_WIDTH, fade_height, fill=1, stroke=0)
-            
+
+            # Simulate smooth gradient with multiple thin stripes
+            # Total gradient height: ~1/3 of page height (matches preview UI h-1/3)
+            top_gradient_height = PAGE_HEIGHT / 3
+            num_layers = 20  # More layers = smoother gradient
+            stripe_height = top_gradient_height / num_layers
+
+            for i in range(num_layers):
+                # Calculate alpha: 0.70 at top -> 0.40 at middle -> 0 at bottom
+                # Using quadratic easing for smoother visual transition
+                progress = i / num_layers  # 0 to 1
+                if progress < 0.5:
+                    # First half: 0.70 -> 0.40
+                    alpha = 0.70 - (0.30 * (progress * 2))
+                else:
+                    # Second half: 0.40 -> 0
+                    alpha = 0.40 * (1 - ((progress - 0.5) * 2))
+
+                y_pos = PAGE_HEIGHT - (i + 1) * stripe_height
+                c.setFillColor(Color(0, 0, 0, alpha=alpha))
+                c.rect(0, y_pos, PAGE_WIDTH, stripe_height + 1, fill=1, stroke=0)  # +1 to avoid gaps
+
             c.restoreState()
 
             # Title text in AMBER-400 color: rgb(251, 191, 36) = #fbbf24
@@ -296,19 +306,31 @@ class StoryGiftPDFGeneratorService:
             c.restoreState()
 
             # =========================================================
-            # BOTTOM GRADIENT OVERLAY - Premium fade for child name
+            # BOTTOM GRADIENT OVERLAY - Smooth multi-layer fade (matches CSS)
+            # CSS: bg-gradient-to-t from-black/80 via-black/50 to-transparent
             # =========================================================
             c.saveState()
-            
-            bottom_gradient_height = 1.8 * inch
-            c.setFillColor(Color(0, 0, 0, alpha=0.60))
-            c.rect(0, 0, PAGE_WIDTH, bottom_gradient_height, fill=1, stroke=0)
-            
-            # Lighter fade at top of bottom gradient
-            fade_top_height = 0.6 * inch
-            c.setFillColor(Color(0, 0, 0, alpha=0.25))
-            c.rect(0, bottom_gradient_height, PAGE_WIDTH, fade_top_height, fill=1, stroke=0)
-            
+
+            # Total gradient height: ~1/4 of page height (matches preview UI h-1/4)
+            bottom_gradient_height = PAGE_HEIGHT / 4
+            num_layers = 16  # Smooth gradient layers
+            stripe_height = bottom_gradient_height / num_layers
+
+            for i in range(num_layers):
+                # Calculate alpha: 0.80 at bottom -> 0.50 at middle -> 0 at top
+                # Layer 0 is at bottom (highest opacity), layer n is at top (transparent)
+                progress = i / num_layers  # 0 to 1 (bottom to top)
+                if progress < 0.5:
+                    # First half (bottom): 0.80 -> 0.50
+                    alpha = 0.80 - (0.30 * (progress * 2))
+                else:
+                    # Second half (top): 0.50 -> 0
+                    alpha = 0.50 * (1 - ((progress - 0.5) * 2))
+
+                y_pos = i * stripe_height  # Start from bottom
+                c.setFillColor(Color(0, 0, 0, alpha=alpha))
+                c.rect(0, y_pos, PAGE_WIDTH, stripe_height + 1, fill=1, stroke=0)  # +1 to avoid gaps
+
             c.restoreState()
 
             # "STARRING" label in light gray
